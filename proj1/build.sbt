@@ -1,6 +1,9 @@
-name := "Hello Test #1"
+name := "Bitcoin Mining"
 version := "1.0"
-scalaVersion := "2.10.0"
+scalaVersion := "2.11.7"
 resolvers += "Typesafe Repository" at "http://repo.typesafe.com/typesafe/releases/"
-libraryDependencies += "com.typesafe.akka" % "akka-actor_2.10" % "2.2-M1"
-mainClass in (Compile,run) := Some("Bitcoin")
+libraryDependencies ++= Seq(
+        "com.typesafe.akka" %% "akka-actor" % "2.3.2",
+        "com.typesafe.akka" %% "akka-remote" % "2.3.2"
+        )
+logLevel := Level.Warn
