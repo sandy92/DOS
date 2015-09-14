@@ -1,0 +1,16 @@
+You can start the program by running one of the following commands
+- To run this program as the master, use 'sbt "run k"', where k is the number of leading zeros needed
+- To run this program as the client, use 'sbt "run x.x.x.x"', where x.x.x.x is the IP address of the remote server.
+
+The batch size we chose for this program is 1000. We chose this batch size after running the program for the same input with different batch sizes and then selected the best batch size among the trials.
+
+Output for 'sbt "run 4"':
+kvsandeep;0002925   000044b80b74384fc72ccc7309c297fde9148e8550e496c60020e0585a4c50dc
+
+Duration for the input k = 5, i.e., for the command 'time sbt "run 5"'
+sbt "run 5"  137.32s user 3.16s system 298% cpu 47.038 total
+
+The coin with the most number of zeros, (when the numbers used to generate the hash are between 0000000 - 1999999) is
+kvsandeep;1486309   00000651112e76652a891799cbc207d27d01699f8d6aceb2c0510e2c425cc5af
+
+We successfully ran the code from three additional locations, one from the same machine as the server but on a different folder, and the other two from two different folders on the second machine.
