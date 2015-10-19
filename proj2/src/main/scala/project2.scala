@@ -233,15 +233,15 @@ class MasterActor(numNodes: Int, topology: String, algorithm: String) extends Ac
     }
     def receive = {
         case InitializeSystem => {
-            println("system started")
+            //println("system started")
             children = generateChildNodes(numNodes)
             updateChildNeighbourList(topology)
-            println("system initiated completely")
+            //println("system initiated completely")
             //println("Child list created "+ children.length)
             //printChildNeighbourList()
 
-            // Sleeping for 5 seconds so we have enough time for all the child nodes to be initiated properly
-            Thread sleep 5000
+            // Sleeping for 2 seconds so we have enough time for all the child nodes to be initiated properly
+            Thread sleep 2000
 
             t = System.currentTimeMillis
             self ! StartSystem(algorithm)
@@ -268,15 +268,16 @@ class MasterActor(numNodes: Int, topology: String, algorithm: String) extends Ac
         }
 
         case GossipSuccess => {
-            println("Gossip propogated across network successfully ........")
+            //println("Gossip propogated across network successfully ........")
             self ! StopSystem
         }
         case PushSumSuccess(state: Double) => {
-            println("Push sum calculated across network successfully -- " + state.toString)
+            //println("Push sum calculated across network successfully -- " + state.toString)
             self ! StopSystem
         } 
         case StopSystem => {
-            println("Total time taken: " + ((System.currentTimeMillis-t).toDouble/1000.toDouble).toString + " seconds")
+            //println("Total time taken: " + ((System.currentTimeMillis-t).toDouble/1000.toDouble).toString + " seconds")
+            println("OUTPUT :: " + algorithm + " : " + topology + " : " + numNodes.toString + " nodes : " + (System.currentTimeMillis-t).toString + " milliseconds")
             context.system.shutdown
         }
         case _ =>
@@ -318,6 +319,7 @@ class MasterActor(numNodes: Int, topology: String, algorithm: String) extends Ac
 
         def receive = {
             case UpdateNeighbours(n: Array[ActorRef]) => {
+                //println("here4")
                 neighbours = neighbours ++ n
             }
             case AddRandNeighbours(n: Array[ActorRef]) => {
@@ -346,11 +348,14 @@ class MasterActor(numNodes: Int, topology: String, algorithm: String) extends Ac
                 }
                 //println(self.toString + " received the message: Gossip count is " + maxGossipCount)
                 if (maxGossipCount >= gossipLimit) {
+                    //println("here1")
                     context.parent ! GossipSuccess
                 } else {
+                    //println("here2")
                     // pick a random neighbour and pass message
                     if(neighbours.length > 0)
                     {
+                    //println("here3")
                         neighbours(random.nextInt(neighbours.length)) ! Rumour(rumour, false)
                     }
                 }
