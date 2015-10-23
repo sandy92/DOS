@@ -33,6 +33,7 @@ case class UpdateSuccessor(node: Node)
 case class Notify(node: Node)
 case object StartStabilization
 case object GetNodeStructure
+case object GetRingNodeStructure
 case class GetCPF(id: Int)
 
 case class T1(n: ActorRef)
@@ -115,7 +116,7 @@ class ChordNode extends Actor {
             temp = fingerTable(i).self.id
             if(Utility.isInRange(temp,this.id,id)) {
                 cpf = fingerTable(i)
-                println("here") // remove
+                //println("here") // remove
                 break
             }
         }
@@ -123,19 +124,26 @@ class ChordNode extends Actor {
     }
 
     def findPredecessor(id: Int) = {
+        println("inside findPredecessor of "+ self.toString + " for an id of "+ id.toString)
         var tempNode = this.ringNodeStructure
         var ts = this.ringNodeStructure
+        var flag = true
 
 /*        println(id)
         println(tempNode.self.id)
         println(tempNode.succ.id)
         println(Utility.isInRightIncRange(id, tempNode.self.id, tempNode.succ.id))*/
 
-        while(!Utility.isInRightIncRange(id, tempNode.self.id, tempNode.succ.id)) {
+        println(id, tempNode.self.id, tempNode.succ.id)
+        println(Utility.isInRightIncRange(id, tempNode.self.id, tempNode.succ.id))
+        while(!Utility.isInRightIncRange(id, tempNode.self.id, tempNode.succ.id) && flag) {
             //println("inside pred loop")
             var f = tempNode.self.ref ? GetCPF(id)
             ts = Await.result(f, t.duration).asInstanceOf[RingNode]
             tempNode = ts
+            if(tempNode.self == this.nodeStructure) {
+                flag = false
+            }
         }
         tempNode
     }
@@ -148,7 +156,9 @@ class ChordNode extends Actor {
     }
 
     def findSuccessor(id: Int)  = {
+        println("called findSuccessor on "+ self.toString + " for an id of "+ id.toString)
         var tempNode = this.findPredecessor(id).self.ref
+        println("the predecessor for " + id.toString + " is " + tempNode.toString)
         var f = tempNode ? GetSuccessor
         var result = Await.result(f, t.duration).asInstanceOf[Node]
         result
@@ -218,6 +228,12 @@ class ChordNode extends Actor {
                 fSender ! this.nodeStructure
             }
         }
+        case GetRingNodeStructure => {
+            val fSender = sender
+            Future {
+                fSender ! this.ringNodeStructure
+            }
+        }
         case GetCPF(id: Int) => {
             val fSender = sender
             Future {
@@ -225,21 +241,25 @@ class ChordNode extends Actor {
             }
         }
         case AddNodeToRing(node: ActorRef) => {
-            //println("here")
+            println("here2 - " + System.currentTimeMillis.toString)
             Future {
-                //println("here")
-                var f = node ? GetNodeStructure
-                var result = Await.result(f, t.duration).asInstanceOf[Node]
-                var n = result
+                println("here3 - " + System.currentTimeMillis.toString)
+                val f = node ? GetNodeStructure
+                val result = Await.result(f, t.duration).asInstanceOf[Node]
+                val n = result
                 // println("cpf starts at " + System.currentTimeMillis())
                 // var s = this.closestPrecedingFinger(n.id)
                 // println("cpf ends at " + System.currentTimeMillis())
                 //println(n.ref.toString)
                 //println("here2")
+                println("here4 - " + System.currentTimeMillis.toString)
                 var succNode = this.findSuccessor(n.id)
                 //var predNode = this.nodeStructure
+                println("here - " + System.currentTimeMillis.toString)
                 println(succNode.ref.toString)
+                println("here5 - " + System.currentTimeMillis.toString)
                 n.ref ! UpdateSuccessor(succNode)
+                println("here6 - " + System.currentTimeMillis.toString)
                 //println(succNode.ref.toString)
                 //println("here3")
 
@@ -320,14 +340,36 @@ object Chord extends App {
         println(Utility.getNodeID(n2))
         println(Utility.getID(n2.path.toString))*/
 
-        n1 ! AddNodeToRing(n2)
-        Thread sleep 5000
-        n1 ! StartStabilization
-        Thread sleep 3000
         n1 ! AddNodeToRing(n3)
         Thread sleep 5000
         n1 ! StartStabilization
         Thread sleep 3000
+
+        n1 ! AddNodeToRing(n2)
+        Thread sleep 5000
+        n1 ! StartStabilization
+        Thread sleep 3000
+
+        println("---")
+        implicit val t = Timeout(3 seconds)
+        var f1 = n1 ? GetRingNodeStructure
+        var result1 = Await.result(f1, t.duration).asInstanceOf[RingNode]
+        println(result1.self.ref.toString + " - " + result1.self.id.toString)
+        println(result1.pred.ref.toString + " - " + result1.pred.id.toString)
+        println(result1.succ.ref.toString + " - " + result1.succ.id.toString)
+        println("---")
+        var f2 = n3 ? GetRingNodeStructure
+        var result2 = Await.result(f2, t.duration).asInstanceOf[RingNode]
+        println(result2.self.ref.toString + " - " + result2.self.id.toString)
+        println(result2.pred.ref.toString + " - " + result2.pred.id.toString)
+        println(result2.succ.ref.toString + " - " + result2.succ.id.toString)
+        println("---")
+        var f3 = n2 ? GetRingNodeStructure
+        var result3 = Await.result(f3, t.duration).asInstanceOf[RingNode]
+        println(result3.self.ref.toString + " - " + result3.self.id.toString)
+        println(result3.pred.ref.toString + " - " + result3.pred.id.toString)
+        println(result3.succ.ref.toString + " - " + result3.succ.id.toString)
+        
         /*n2 ! StartStabilization
         Thread sleep 3000
         n2 ! StartStabilization*/
