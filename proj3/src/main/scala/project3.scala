@@ -34,6 +34,7 @@ case class UpdateSuccessor(node: RingNode)
 
 case object GetPredecessor
 case class UpdatePredecessor(node: Node)
+case class UpdatePredFT(node: RingNode)
 
 case object UpdateOthers
 case object GetFingerTable
@@ -57,8 +58,9 @@ case class AddNodeToRing(node: ActorRef)
 
 // Utility objects which contains the common functions used across the program
 object Utility {
-    val fingerTableSize = 31
-    val maxRingCount = Math.pow(2,31).toInt
+    //val fingerTableSize = 31
+    val fingerTableSize = 5
+    val maxRingCount = Math.pow(2,fingerTableSize).toInt
 
     def getID(key: String) = {
         var hash = MessageDigest.getInstance("SHA-1").digest(key.getBytes).map(e => "%02x".format(e)).mkString
@@ -76,15 +78,23 @@ object Utility {
         this.getID(node.path.toString)
     }
 
-    def ringPosition(id: Int) = {
+    def ringPosition(id: Long) = {
+        var result = id
         if(id < 0) {
-            (id + maxRingCount) % maxRingCount
+            while(result < 0) {
+                result = result + maxRingCount.toLong
+            }
+            result.toInt
+            //(id + maxRingCount) % maxRingCount
         } else {
-            id % maxRingCount
+            while(result > 0) {
+                result = result - maxRingCount.toLong
+            }
+            (result + maxRingCount).toInt
         }
     }
 
-    def isInRange(id: Int, left: Int, right: Int) = {
+    def isInRange(id: Long, left: Long, right: Long) = {
         var tempID = this.ringPosition(id)
         var tempLeft = this.ringPosition(left+1)
         var tempRight = this.ringPosition(right-1)
@@ -95,11 +105,11 @@ object Utility {
         }
     }
 
-    def isInLeftIncRange(id: Int, left: Int, right: Int) = {
+    def isInLeftIncRange(id: Long, left: Long, right: Long) = {
         (this.ringPosition(id) == this.ringPosition(left)) || this.isInRange(id,left,right)
     }
 
-    def isInRightIncRange(id: Int, left: Int, right: Int) = {
+    def isInRightIncRange(id: Long, left: Long, right: Long) = {
         (this.ringPosition(id) == this.ringPosition(right)) || this.isInRange(id,left,right)
     }
 }
@@ -133,29 +143,29 @@ class ChordNode extends Actor {
     def closestPrecedingFinger(id: Int) = {
         var temp = 0
         var cpf = this.ringNodeStructure
-        // println("----")
-        // println("inside cpf")
+        println("----")
+        println("inside cpf")
 
         breakable {
             for( i <- m-1 to 0 by -1) {
                 //temp = Utility.getID(fingerTable(i).path.toString)
-                // println("hereerere")
+                println("inside cpf loop")
                 temp = fingerTable(i).self.id
-                // println(Utility.isInRange(temp,this.id,id).toString + " - " + temp.toString + " - " + this.id.toString + " - " + id.toString)
+                println(Utility.isInRange(temp,this.id,id).toString + " - " + temp.toString + " - " + this.id.toString + " - " + id.toString)
                 if(Utility.isInRange(temp,this.id,id)) {
                     cpf = fingerTable(i)
-                    //println("here") // remove
+                    println("here") // remove
                     break
                 }
             }
         }
-        // println("outside cpf")
-        // println("----")
+        println("outside cpf")
+        println("----")
         cpf
     }
 
     def findPredecessor(id: Int) = {
-        //println("inside findPredecessor of "+ self.toString + " for an id of "+ id.toString)
+        println("inside findPredecessor of "+ self.toString + " for an id of "+ id.toString)
         var tempNode = this.ringNodeStructure
         var ts = this.ringNodeStructure
 
@@ -168,15 +178,17 @@ class ChordNode extends Actor {
         //println(Utility.isInRightIncRange(id, tempNode.self.id, tempNode.succ.id))
         breakable {
             while(!Utility.isInRightIncRange(id, tempNode.self.id, tempNode.succ.id)) {
-                //println("inside pred loop")
+                println("inside pred loop")
                 var f = tempNode.self.ref ? GetCPF(id)
                 ts = Await.result(f, t.duration).asInstanceOf[RingNode]
                 tempNode = ts
-                //println(tempNode.toString)
+                println(tempNode.toString)
                 if(tempNode.self == this.nodeStructure) {
+                    println("break executed")
                     break
                 }
             }
+            println("pred loop complete")
         }
         tempNode
     }
@@ -189,7 +201,7 @@ class ChordNode extends Actor {
     }*/
 
     def findSuccessor(id: Int)  = {
-        //println("called findSuccessor on "+ self.toString + " for an id of "+ id.toString)
+        println("called findSuccessor on "+ self.toString + " for an id of "+ id.toString)
         var tempNode = this.findPredecessor(id).self.ref
         //println("the predecessor for " + id.toString + " is " + tempNode.toString)
         var f = tempNode ? GetSuccessor
@@ -199,44 +211,102 @@ class ChordNode extends Actor {
 
     def receive = {
         case PrepareNode => {
+            println("here1")
             Future {
+                println("here2")
                 while(true) {
                     if(this.addRequestQueue.isEmpty) {
                         //println("Nothing here, come back after some time")
                         this.isRingPrintable = true
                     } else {
+                        println("here1")
                         //println(this.addRequestQueue.toString)
                         var node = this.addRequestQueue.dequeue
                         val nodeID = Utility.getNodeID(node)
                         val nodePred = this.findPredecessor(nodeID)
                         var nodeSucc = nodePred.succ
 
+                        nodeSucc.ref ! UpdatePredecessor(Node(node,nodeID))
+
                         var f = nodeSucc.ref ? GetRingNodeStructure
                         var result = Await.result(f, t.duration).asInstanceOf[RingNode]
                         val n = result
 
+                        val ringNode = RingNode(Node(node,nodeID),nodePred.self,nodeSucc)
+
                         node ! UpdateSuccessor(n)
                         node ! UpdatePredecessor(nodePred.self)
-                        nodeSucc.ref ! UpdatePredecessor(Node(node,nodeID))
+
                         Thread sleep 1000 //remove
 
-                        var f1 = node ? GetFingerTable
-                        var r1 = Await.result(f1, t.duration).asInstanceOf[ArrayBuffer[RingNode]]
-                        val ft = r1
+                        //Thread sleep 2000 //remove
 
-                        for( i <- 0 to m-2) {
-                            if(Utility.isInLeftIncRange((nodeID + Math.pow(2,i+1).toInt), this.id, (nodeID + Math.pow(2,i).toInt))) {
+                        // self ! T2
+                        // node ! T2
+
+                        // println("here")
+                        nodePred.self.ref ! UpdatePredFT(ringNode)
+                        /*var f1 = nodePred.self.ref ? UpdatePredFT(ringNode)
+                        var r1 = Await.result(f1, t.duration).asInstanceOf[Int]
+                        val k = r1*/
+
+                        /*var f2 = node ? GetFingerTable
+                        var r2 = Await.result(f2, t.duration).asInstanceOf[ArrayBuffer[RingNode]]
+                        val ft = r2
+                        */
+                        /*for( i <- k+1 to m-1) {
+                            if(Utility.isInLeftIncRange((nodeID + Math.pow(2,i+1).toInt), this.id, ft(i).self.id)) {
                                 ft(i+1) = ft(i)
                                 //println(ft(i+1).toString)
                             } else {
                                 ft(i+1) = this.findSuccessor(nodeID + Math.pow(2,i+1).toInt)
                                 //println(ft(i+1).toString)
                             }
-                        }
+                        }*/
+
+                        /*var f1 = node ? GetFingerTable
+                        var r1 = Await.result(f1, t.duration).asInstanceOf[ArrayBuffer[RingNode]]
+                        val ft = r1
+
+                        for( i <- 0 to m-2) {
+                            //if(Utility.isInLeftIncRange((nodeID + Math.pow(2,i+1).toInt), this.id, (nodeID + Math.pow(2,i).toInt))) {
+                            if(Utility.isInLeftIncRange((nodeID + Math.pow(2,i+1).toInt), this.id, ft(i).self.id)) {
+                                ft(i+1) = ft(i)
+                                //println(ft(i+1).toString)
+                            } else {
+                                ft(i+1) = this.findSuccessor(nodeID + Math.pow(2,i+1).toInt)
+                                //println(ft(i+1).toString)
+                            }
+                        }*/
+
+
+
+                        /*var pred = this.ringNodeStructure
+                        breakable {
+                            //for( i <- 0 to m-1) {
+                                //println("i")
+                            //println(this.fingerTable.toString)//println(this.id.toString + " - " + (this.id - Math.pow(2,i).toInt).toString + " - " +pred.toString)
+                            //println("----")
+                            for( i <- 0 to 0) {
+                                pred = this.findPredecessor(nodeID - Math.pow(2,i).toInt)
+                                println(nodeID.toString + " - " + (nodeID - Math.pow(2,i).toInt).toString + " - " +pred.toString)
+                                //pred.self.ref ! UpdateFingerTableEntry(RingNode(Node(node,nodeID),nodePred.self,nodeSucc),i)
+                                
+                                /*if(flag) {
+                                    pred = this.findPredecessor(this.id - Math.pow(2,i).toInt)
+                                    if(pred.self.ref  == self) {
+                                        flag = false
+                                    }
+                                }*/
+                            }
+                        }*/
+
+                        //println(ft.toString)
 
                         //node ! UpdateFingerTable(ft)
-                        node ! UpdateOthers
+                        //node ! UpdateOthers
                         //println(node.toString)
+                        //println(node.toString + " -- " +ft.toString)
                     }
                     Thread sleep 2000
                 }
@@ -289,6 +359,74 @@ class ChordNode extends Actor {
                 //this.succ.ref ! Notify(this.nodeStructure)
             }*/
         }
+        case UpdatePredFT(r: RingNode) => {
+            Future {
+                println("inside node " + self.toString)
+                println("-----")
+                println(r.toString)
+                println("-----")
+                //println("hereerere")
+                var k = -1
+                var succNode = this.succ
+                breakable {
+                    for( i <- 0 to m-1) {
+                        println("check " + i)
+                        /*println("-----")
+                        println(this.fingerTable(i))
+                        println("-----")*/
+                        if(Utility.isInRightIncRange(this.id.toLong + Math.pow(2,i).toLong,this.id, r.self.id)) {
+                            println(this.id.toString + " - " + r.self.id.toString + " - " + Utility.ringPosition(this.id.toLong + Math.pow(2,i).toLong).toString)
+                            this.fingerTable(i) = r
+                            /*if(r.succ.ref == self){
+                                println("here")
+                                this.fingerTable(i) = RingNode(r.self,r.pred,succNode.succ)
+                                println(this.fingerTable(i) + " " + i)
+                            } else {
+                                println("should be here")
+                                this.fingerTable(i) = r
+                                println(this.fingerTable(i) + " " + i)
+                            }*/
+                            r.self.ref ! UpdateFingerTableEntry(RingNode(succNode.self,r.self,succNode.succ),i)
+                            k = i
+                            /*println("new-----")
+                            println(this.fingerTable(i))
+                            println("new-----")*/
+                        } else {
+                            break
+                        }
+                    }
+                }
+                println("in correct order 2")
+                println("hereerere")
+                
+                // r.self.ref ! T1
+
+                var f2 = r.self.ref ? GetFingerTable
+                var r2 = Await.result(f2, t.duration).asInstanceOf[ArrayBuffer[RingNode]]
+                val ft = r2
+
+                // println(r.self.ref.toString)
+
+                //println(ft.toString)
+                println(this.fingerTable.toString)
+                
+                println(k)
+
+                /*for( i <- k+1 to m-1) {
+                    if(Utility.isInLeftIncRange((r.self.id.toLong + Math.pow(2,i+1).toLong), this.id, ft(i).self.id)) {
+                        ft(i+1) = ft(i)
+                        println("if case" + i)
+                        //println(ft(i+1).toString)
+                    } else {
+                        println("else case" + i)
+                        ft(i+1) = this.findSuccessor(Utility.ringPosition(r.self.id.toLong + Math.pow(2,i+1).toLong))
+                        //println(ft(i+1).toString)
+                    }
+                }
+
+                println(ft.toString)*/
+            }
+        }
         case UpdateOthers => {
             Future {
                 var pred = this.ringNodeStructure
@@ -299,7 +437,7 @@ class ChordNode extends Actor {
                     //println("----")
                     //for( i <- 0 to 0) {
                         //println(this.id.toString + " - " + (this.id - Math.pow(2,i).toInt).toString + " - " +pred.toString)
-                        pred = this.findPredecessor(this.id - Math.pow(2,i).toInt)
+                        pred = this.findPredecessor(Utility.ringPosition(this.id.toLong - Math.pow(2,i).toLong))
                         pred.self.ref ! UpdateFingerTableEntry(this.ringNodeStructure,i)
                         //println(this.id.toString + " - " + (this.id - Math.pow(2,i).toInt).toString + " - " +pred.toString)
                         /*if(flag) {
@@ -332,11 +470,15 @@ class ChordNode extends Actor {
             }
         }
         case UpdateFingerTableEntry(f: RingNode, i: Int) => {
+            println("----")
+            println("calling update finger table entry for " + i + " -- " + f.toString)
+            println("----")
+            this.fingerTable(i) = f
             Future {
-                if(Utility.isInLeftIncRange(f.self.id, this.id, this.fingerTable(i).self.id)) {
+                /*if(Utility.isInLeftIncRange(f.self.id, this.id, this.fingerTable(i).self.id)) {
                     this.fingerTable(i) = f
                     this.pred.ref ! UpdateFingerTableEntry(f, i)
-                }
+                }*/
             }
         }
         case Notify(node: Node) => {
@@ -505,13 +647,10 @@ class ChordNode extends Actor {
             //}
         }
         case T1 => {
-            println(this.addRequestQueue.toString)
+            println(self.toString + " - " + this.fingerTable.toString)
         }
         case T2 => {
-            val fSender = sender
-            Future {
-                fSender ! this.test
-            }
+            println(this.ringNodeStructure)
         }
         case T3 => {
             println(this.test.toString)
@@ -544,13 +683,20 @@ object Chord extends App {
         println(Utility.getNodeID(n2))
         println(Utility.getID(n2.path.toString))*/
 
-        //n1 ! T1
         n1 ! PrepareNode
-        n1 ! AddNodeToRing(n2)
-        n1 ! AddNodeToRing(n3)
-        n1 ! AddNodeToRing(n5)
         n1 ! AddNodeToRing(n4)
-        n1 ! AddNodeToRing(n6)
+        //n1 ! AddNodeToRing(n3)
+
+        /*Thread sleep 5000
+        n1 ! T1
+        n4 ! T1*/
+
+        // n1 ! T1
+        // n2 ! T1
+        // n3 ! T1
+        // n1 ! AddNodeToRing(n5)
+        // n1 ! AddNodeToRing(n4)
+        // n1 ! AddNodeToRing(n6)
         //n1 ! T1
         /*Thread sleep 5000
         n1 ! StartStabilization
@@ -591,8 +737,8 @@ object Chord extends App {
         val result = Await.result(future, timeout.duration).toString
         println(result)*/
 
-        Thread sleep 5000
-        printChordRing(n1)
+        Thread sleep 20000
+        //printChordRing(n1)
         system.shutdown
 
         //printChordRing(n1)
