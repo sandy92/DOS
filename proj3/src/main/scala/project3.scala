@@ -27,6 +27,7 @@ case class Node(ref: ActorRef, id: Int)
 // Actor Messages
 case object PrintNode
 case object GetPrintStatus
+case object GetMessageStatus
 
 case object GetSuccessor
 case class UpdateSuccessor(node: Node)
@@ -45,6 +46,11 @@ case object GetNodeStructure
 case class GetCPF(id: Int)
 
 case class AddNodeToRing(node: ActorRef)
+
+case class AddMessageToRing(msg: String)
+case class AddMessageToNode(msg: String)
+case class PrintAvgHopCount(m: ArrayBuffer[String])
+case class ContainsMessage(msg: String)
 
 // test cases
 case object T1
@@ -111,9 +117,11 @@ class ChordNode extends Actor {
     val messages = ArrayBuffer.empty[String]
     val fingerTable = ArrayBuffer.empty[Node]
     val addRequestQueue = Queue.empty[ActorRef]
+    val addMessageQueue = Queue.empty[String]
     val m = Utility.fingerTableSize
     var pred = Node(self,this.id)
     var isRingPrintable = true
+    var isMessageQueueEmpty = true
 
     val nodeStructure = Node(self,this.id)
 
@@ -198,6 +206,19 @@ class ChordNode extends Actor {
                     Thread sleep 3000
                 }
             }
+            Future {
+                while(true) {
+                    if(this.addMessageQueue.isEmpty) {
+                        this.isMessageQueueEmpty = true
+                    } else {
+                        var msg = this.addMessageQueue.dequeue
+                        var id = Utility.getID(msg)
+                        var succNode = this.findSuccessor(id)
+                        succNode.ref ! AddMessageToNode(msg)
+                    }
+                    Thread sleep 1000
+                }
+            }
         }
 
         case PrintNode => {
@@ -206,6 +227,10 @@ class ChordNode extends Actor {
 
         case GetPrintStatus => {
             sender ! this.isRingPrintable
+        }
+
+        case GetMessageStatus => {
+            sender ! this.isMessageQueueEmpty
         }
 
         case GetSuccessor => {
@@ -322,6 +347,92 @@ class ChordNode extends Actor {
             this.isRingPrintable = false
         }
 
+        case AddMessageToRing(msg: String) => {
+            this.addMessageQueue += msg
+            this.isMessageQueueEmpty = false
+        }
+
+        case AddMessageToNode(msg: String) => {
+            this.messages += msg
+            println(msg + " goes to " + self.path.name)
+        }
+
+        case PrintAvgHopCount(m: ArrayBuffer[String]) => {
+            Future {
+                if(m.size > 0) {
+                    var tempNode = this.nodeStructure
+                    var ts = this.nodeStructure
+                    var totalCount = 0
+                    var count = 0
+                    var success = false
+                    var id = 0
+
+                    println(m)
+                    for(i <- 0 to m.size-1) {
+                        tempNode = this.nodeStructure
+                        ts = this.nodeStructure
+                        count = 0
+                        success = false
+                        id = Utility.getID(m(i))
+                        if(this.messages.contains(m(i))) {
+                            count = 0
+                        } else {
+                            breakable {
+                                while(true) {
+                                    var f = tempNode.ref ? GetSuccessor
+                                    var result = Await.result(f, t.duration).asInstanceOf[Node]
+                                    var succNode = result
+
+                                    var f2 = tempNode.ref ? ContainsMessage(m(i))
+                                    var r2 = Await.result(f2, t.duration).asInstanceOf[Boolean]
+                                    success = r2
+                                    count = count + 1
+
+                                    if(success) {
+                                        break
+                                    }
+
+                                    if(Utility.isInRightIncRange(id, tempNode.id, succNode.id)) {
+                                        if(!success) {
+                                            var f3 = succNode.ref ? ContainsMessage(m(i))
+                                            var r3 = Await.result(f3, t.duration).asInstanceOf[Boolean]
+                                            success = r3
+                                            count = count + 1
+                                        }
+                                        break
+                                    }
+
+                                    var f1 = tempNode.ref ? GetCPF(id)
+                                    ts = Await.result(f1, t.duration).asInstanceOf[Node]
+                                    tempNode = ts
+
+                                    if(tempNode == this.nodeStructure) {
+                                        break
+                                    }
+                                }
+                            }
+                            if(success) {
+                                totalCount = totalCount + count - 1
+                            } else {
+                                println("Unable to find the message " + m(i))
+                            }
+                        }
+                    }
+                    println("The average hop count for " + m.size + " messages is " + totalCount/m.size)
+                } else {
+                    println("The array size should be greater than 1")
+                }
+            }
+        }
+
+        case ContainsMessage(msg: String) => {
+            if(this.messages.contains(msg)) {
+                sender ! true
+            } else {
+                sender ! false
+            }
+        }
+
         case T1 => {
             //println("FT:" + self.path.name + " - " + this.fingerTable)
         }
@@ -358,8 +469,53 @@ object Chord extends App {
 
             Thread sleep 20000
 
-            printChordRing(n1)
-            system.shutdown
+            implicit val t = Timeout(3 seconds)
+            var status = false
+            breakable {
+                do {
+                    val f = n1 ? GetPrintStatus
+                    val result = Await.result(f, t.duration).asInstanceOf[Boolean]
+                    status = result
+                    Thread sleep 3000
+                } while (!status)
+            }
+
+            println("The chord ring of " + numNodes + " nodes is created successfully")
+
+            val messageArray = ArrayBuffer.empty[String]
+
+            var msg = ""
+            for( i <- 0 to (5*numRequests-1)) {
+                msg = Random.alphanumeric.take(25).mkString
+                n1 ! AddMessageToRing(msg)
+                messageArray += msg
+            }
+
+            if (numRequests < 1) {
+                //println("The number of requests should be greater than 0")
+                printChordRing(n1)
+            } else {
+                Thread sleep 1000
+                status = false
+                breakable {
+                    do {
+                        val f = n1 ? GetMessageStatus
+                        val result = Await.result(f, t.duration).asInstanceOf[Boolean]
+                        status = result
+                        Thread sleep 3000
+                    } while (!status)
+                }
+
+                val m = ArrayBuffer.empty[String]
+                var j = 0
+                for( i <- 0 to numRequests-1) {
+                    j = Random.nextInt(5*numRequests)
+                    m += messageArray(j)
+                }
+                n1 ! PrintAvgHopCount(m)
+
+                //system.shutdown
+            }
         }
     } else {
        println("Not enough arguments")
@@ -367,16 +523,8 @@ object Chord extends App {
 
     def printChordRing(n: ActorRef) = {
         implicit val t = Timeout(3 seconds)
-        var status = false
-        breakable {
-            do {
-                val f = n ? GetPrintStatus
-                val result = Await.result(f, t.duration).asInstanceOf[Boolean] // should handle the case where the we have a timeout
-                status = result
-                Thread sleep 3000
-            } while (!status)
-        }
 
+        println("The chord ring is mentioned below: ")
         var temp = Node(n,Utility.getNodeID(n))
         var result = temp
         val lb = ListBuffer.empty[Node]
