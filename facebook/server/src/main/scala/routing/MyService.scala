@@ -1,25 +1,26 @@
-import akka.actor.Actor
+import akka.actor._
 import spray.routing._
 import spray.http._
+import spray.httpx._
+import spray.httpx.SprayJsonSupport._
+import spray.httpx.unmarshalling._
+import spray.httpx.marshalling._
 import MediaTypes._
+import MyJsonProtocol._
+import fb._
 
 // we don't implement our route structure directly in the service actor because
 // we want to be able to test it independently, without having to spin up an actor
-class MyServiceActor extends Actor with MyService {
+class MyServiceActor extends HttpService with Actor with PerRequestCreator {
 
   // the HttpService trait defines only one abstract member, which
   // connects the services environment to the enclosing actor or test
-  def actorRefFactory = context
+  implicit def actorRefFactory = context
 
   // this actor only runs our route, but you could add
   // other things here, like request stream processing
   // or timeout handling
   def receive = runRoute(myRoute)
-}
-
-
-// this trait defines our service behavior independently from the service actor
-trait MyService extends HttpService {
 
   val myRoute =
     path("") {
@@ -39,5 +40,27 @@ trait MyService extends HttpService {
           }
         }
       }
+    } ~
+    path("test") {
+      get {
+        parameters('id) { id =>
+          testMessage {
+            TestMessage(id)
+          }
+        }
+      }
+    } ~
+    path("na") {
+      get {
+        parameters('id) { id =>
+          Thread sleep 3000
+          complete {
+            TestMessage((id.toInt+1).toString)
+          }
+        }
+      }
     }
+
+    def testMessage(message : RestMessage): Route =
+      ctx => perRequest(ctx, Props[Test], message)
 }
