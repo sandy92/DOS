@@ -16,7 +16,10 @@ libraryDependencies ++= {
         "io.spray"              %%  "spray-json" % "1.3.2",
         "com.typesafe.akka"   %%  "akka-actor"    % akkaV,
         "com.typesafe.akka"   %%  "akka-testkit"  % akkaV   % "test",
-        "org.scalatest" % "scalatest_2.11" % "2.2.4" % "test"
+        "org.scalatest" % "scalatest_2.11" % "2.2.4" % "test",
+        "com.typesafe.akka" %% "akka-slf4j"      % akkaV,
+        "ch.qos.logback"    %  "logback-classic" % "1.1.2",
+        "net.debasishg" %% "redisclient" % "3.0"
        )
 }
 

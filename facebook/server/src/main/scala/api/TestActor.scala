@@ -1,5 +1,4 @@
 import akka.actor._
-import fb._
 
 class Test extends Actor {
     def receive = {

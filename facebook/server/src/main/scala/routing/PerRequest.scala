@@ -5,7 +5,6 @@ import spray.httpx._
 import spray.http.StatusCodes._
 import spray.routing._
 import MyJsonProtocol._
-import fb._
 
 trait PerRequest extends Actor with SprayJsonSupport {
   
@@ -24,7 +23,7 @@ trait PerRequest extends Actor with SprayJsonSupport {
       stop(self)
     }
     case ReceiveTimeout => {
-      r.complete(GatewayTimeout,Timeout("timed out"))
+      r.complete(GatewayTimeout,TimeoutMessage("timed out"))
       stop(self)
     }
     case _ =>

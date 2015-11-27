@@ -1,0 +1,2 @@
+trait Profile extends RedisApi{
+}
