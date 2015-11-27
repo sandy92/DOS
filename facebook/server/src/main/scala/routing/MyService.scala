@@ -37,7 +37,7 @@ class MyServiceActor extends HttpService with Actor with PerRequestCreator {
   val myRoute =
     path("") {
       get {
-        respondWithMediaType(`application/json`) { // XML is marshalled to `text/xml` by default, so we simply override here
+        respondWithMediaType(`application/json`) {
           complete {
             """{ "message":"Hello World!" }"""
           }
@@ -47,7 +47,7 @@ class MyServiceActor extends HttpService with Actor with PerRequestCreator {
     pathPrefix("user") {
       pathEnd {
         get {
-          respondWithMediaType(`application/json`) { // XML is marshalled to `text/xml` by default, so we simply override here
+          respondWithMediaType(`application/json`) {
             complete {
               """{ "message":"Hello User!" }"""
             }
@@ -75,6 +75,56 @@ class MyServiceActor extends HttpService with Actor with PerRequestCreator {
           delete {
             user {
               DeleteUser(id)
+            }
+          }
+        } ~
+        pathPrefix("likes") {
+          pathEnd {
+            get {
+              /*respondWithMediaType(`application/json`) {
+                complete {
+                  """{ "message":"Sending list of likes for """ + id + """" }"""
+                }
+              }*/
+              user {
+                GetLikesOf(id)
+              }
+            }
+          }
+        }
+      }
+    } ~
+    pathPrefix("page") {
+      pathEnd {
+        get {
+          respondWithMediaType(`application/json`) {
+            complete {
+              """{ "message":"Hello Page!" }"""
+            }
+          }
+        }
+      } ~
+      pathPrefix("create") {
+        pathEnd {
+          put {
+            formFields('name, 'webAddress ,'about) { (name, webAddress, about) =>
+              page {
+                CreatePage(name, webAddress,about)
+              }
+            }
+          }
+        }
+      } ~
+      pathPrefix("[0-9]+".r) { id =>
+        pathEnd {
+          get {
+            page {
+              GetPageDetails(id)
+            }
+          } ~ 
+          delete {
+            page {
+              DeletePage(id)
             }
           }
         }
@@ -105,4 +155,7 @@ class MyServiceActor extends HttpService with Actor with PerRequestCreator {
 
     def user(message : RestMessage): Route =
       ctx => perRequest(ctx, Props[User], message)
+
+    def page(message : RestMessage): Route =
+      ctx => perRequest(ctx, Props[Page], message)
 }
