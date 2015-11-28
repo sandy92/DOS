@@ -81,11 +81,6 @@ class MyServiceActor extends HttpService with Actor with PerRequestCreator {
         pathPrefix("likes") {
           pathEnd {
             get {
-              /*respondWithMediaType(`application/json`) {
-                complete {
-                  """{ "message":"Sending list of likes for """ + id + """" }"""
-                }
-              }*/
               user {
                 GetLikesOf(id)
               }
@@ -125,6 +120,15 @@ class MyServiceActor extends HttpService with Actor with PerRequestCreator {
           delete {
             page {
               DeletePage(id)
+            }
+          }
+        } ~ 
+        pathPrefix("likes") {
+          pathEnd {
+            get {
+              page {
+                GetLikesOf(id)
+              }
             }
           }
         }

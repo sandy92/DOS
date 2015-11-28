@@ -13,9 +13,15 @@ trait LikesOf {
 trait LikedBy {
     this: Actor =>
 
-    def sendLikedBy(id: String, sender: ActorRef) = ???
+    def sendLikedBy(id: String, sender: ActorRef): Unit
 
     def handleLikedBy: Receive = {
         case a: GetLikedBy => sendLikedBy(a.id, sender)
     }
+}
+
+trait Comment {
+}
+
+trait Share {
 }

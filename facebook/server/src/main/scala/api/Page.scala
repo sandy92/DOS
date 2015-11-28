@@ -5,7 +5,37 @@ import Parse.Implicits._
 
 class Page extends Profile with LikedBy with IDGenerator {
     def sendLikesOf(id: String, sender: ActorRef) = {
+        val x = {
+            if(id.headOption.getOrElse("").toString == prefix("page").toString) {
+                val m = rc.smembers[String]("likesOf:page:"+id.toString).get
+                if(!m.isEmpty) {
+                    val size = rc.scard("likesOf:page:"+id.toString).getOrElse(0).toString
+                    Likes(size,m.map(_.get).map(e => extractDetails(e,rc.hgetall[String,String](e).getOrElse(Map()))))
+                } else {
+                    ErrorMessage("The given page did not like anything")
+                }
+            } else {
+                ErrorMessage("Not a valid page id")
+            }
+        }
+        sender ! x
+    }
 
+    def sendLikedBy(id: String, sender: ActorRef) = {
+        val x = {
+            if(id.headOption.getOrElse("").toString == prefix("page").toString) {
+                val m = rc.smembers[String]("likedBy:page:"+id.toString).get
+                if(!m.isEmpty) {
+                    val size = rc.scard("likedBy:page:"+id.toString).getOrElse(0).toString
+                    Likes(size,m.map(_.get).map(e => extractDetails(e,rc.hgetall[String,String](e).getOrElse(Map()))))
+                } else {
+                    ErrorMessage("The given page did not like anything")
+                }
+            } else {
+                ErrorMessage("Not a valid page id")
+            }
+        }
+        sender ! x
     }
 
     def receive = handleLikesOf orElse handleLikedBy orElse {
