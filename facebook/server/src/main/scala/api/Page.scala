@@ -46,6 +46,10 @@ class Page extends Profile with LikedBy with IDGenerator {
                     val s = rc.hmset("page:"+pageID,Map("name"->u.name,"webAddress"->u.webAddress,"about"->u.about))
                     if (s) {
                         rc.sadd("pages",u.webAddress)
+                        Album.createAlbum("Photos",pageID) match {
+                            case a: AlbumCreated => rc.hset("page:"+pageID,"defaultAlbum",a.id)
+                            case _ => 
+                        }
                         PageCreated(pageID)
                     } else {
                         ErrorMessage("Page not created")

@@ -1,10 +1,10 @@
 import spray.json._
 import spray.http._
-import spray.httpx.SprayJsonSupport._
 import spray.routing._
+import spray.httpx.SprayJsonSupport._
 import MediaTypes._
 
-object MyJsonProtocol extends DefaultJsonProtocol {
+object MyJsonProtocol extends DefaultJsonProtocol with NullOptions {
     implicit val timeoutFormat = jsonFormat1(TimeoutMessage)
     implicit val testMessageFormat = jsonFormat1(TestMessage)
 
@@ -25,6 +25,19 @@ object MyJsonProtocol extends DefaultJsonProtocol {
     implicit val deletePageFormat = jsonFormat1(DeletePage)
     implicit val pageDeletedFormat = jsonFormat1(PageDeleted)
     implicit val pageDetailsFormat = jsonFormat4(PageDetails)
+
+    // Album formats
+    implicit val createAlbumFormat = jsonFormat2(CreateAlbum)
+    implicit val albumCreatedFormat = jsonFormat1(AlbumCreated)
+    implicit val getAlbumDetailsFormat = jsonFormat1(GetAlbumDetails)
+    implicit val deleteAlbumFormat = jsonFormat1(DeleteAlbum)
+    implicit val albumDeletedFormat = jsonFormat1(AlbumDeleted)
+    implicit val albumDetailsFormat = jsonFormat4(AlbumDetails)
+    implicit val getPhotosFromAlbumFormat = jsonFormat1(GetPhotosFromAlbum)
+
+    // Photo formats
+    implicit val uploadPhotoFormat = jsonFormat4(UploadPhoto)
+    implicit val photoUploadedFormat = jsonFormat1(PhotoUploaded)
 
     // Likes
     implicit val getLikesOfFormat = jsonFormat1(GetLikesOf)
@@ -48,9 +61,20 @@ object MyJsonProtocol extends DefaultJsonProtocol {
             case p: DeletePage => p.toJson
             case p: PageDeleted => p.toJson
             case p: PageDetails => p.toJson
+            case p: UploadPhoto => p.toJson
+            case p: PhotoUploaded => p.toJson
             case p: GetLikesOf => p.toJson
             case p: GetLikedBy => p.toJson
             case p: Likes => p.toJson
+            case p: GetFriendsList => p.toJson
+            case p: FriendsList => p.toJson
+            case p: PostCreated => p.toJson
+            case p: GetPosts => p.toJson
+            case p: Posts => p.toJson
+            case p: GetPostDetails => p.toJson
+            case p: PostDetails => p.toJson
+            case p: DeletePost => p.toJson
+            case p: PostDeleted => p.toJson
         }
 
         def read(value: JsValue) = value  match {
@@ -59,4 +83,17 @@ object MyJsonProtocol extends DefaultJsonProtocol {
     }
 
     implicit val likesFormat = jsonFormat2(Likes)
+
+    // Friends list formats
+    implicit val getFriendsListFormat = jsonFormat1(GetFriendsList)
+    implicit val friendsListFormat = jsonFormat2(FriendsList)
+
+    // Posts formats
+    implicit val postCreatedFormat = jsonFormat1(PostCreated)
+    implicit val getPostsFormat = jsonFormat1(GetPosts)
+    implicit val getPostDetailsFormat = jsonFormat1(GetPostDetails)
+    implicit val postDetailsFormat = jsonFormat4(PostDetails)
+    implicit val postsFormat = jsonFormat2(Posts)
+    implicit val deletePostFormat = jsonFormat2(DeletePost)
+    implicit val postDeletedFormat = jsonFormat1(PostDeleted)
 }

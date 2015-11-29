@@ -29,6 +29,10 @@ class User extends Profile with IDGenerator {
                     val s = rc.hmset("user:"+userID,Map("name"->u.name,"email"->u.email,"age"->u.age))
                     if (s) {
                         rc.sadd("users",u.email)
+                        Album.createAlbum("Photos",userID) match {
+                            case a: AlbumCreated => rc.hset("user:"+userID,"defaultAlbum",a.id)
+                            case _ => 
+                        }
                         UserCreated(userID)
                     } else {
                         ErrorMessage("User not created")
@@ -44,7 +48,7 @@ class User extends Profile with IDGenerator {
                 if(u.userID.headOption.getOrElse("").toString == prefix("user").toString) {
                     val m = rc.hgetall[String,String]("user:"+u.userID.toString).get
                     if(!m.isEmpty) {
-                        extractDetails("user:"+u.userID.toString,m)
+                        extractDetails("user:"+u.userID.toString,m).get
                     } else {
                         ErrorMessage("User Not found")
                     }
@@ -62,6 +66,40 @@ class User extends Profile with IDGenerator {
                         rc.srem("users",email)
                         rc.del("user:"+u.userID)
                         UserDeleted("User " + u.userID.toString + " deleted successfully")
+                    } else {
+                        ErrorMessage("The given user does not exist")
+                    }
+                } else {
+                    ErrorMessage("Not a valid user id")
+                }
+            }
+            sender ! x
+        }
+        case u: GetFriendsList => {
+            val x = {
+                if(u.userID.headOption.getOrElse("").toString == prefix("user").toString) {
+                    val email = rc.hget[String]("user:" + u.userID.toString,"email").getOrElse("")
+                    if(!email.isEmpty) {
+                        val size = rc.scard("friends:user:"+u.userID.toString).getOrElse(0).toString
+                        val m = rc.smembers[String]("friends:user:"+u.userID.toString).get
+                        FriendsList(size,m.map(_.get).map(e => extractDetails(e,rc.hgetall[String,String](e).getOrElse(Map()))))
+                    } else {
+                        ErrorMessage("The given user does not exist")
+                    }
+                } else {
+                    ErrorMessage("Not a valid user id")
+                }
+            }
+            sender ! x
+        }
+        case u: GetPosts => {
+            val x = {
+                if(u.profileID.headOption.getOrElse("").toString == prefix("user").toString) {
+                    val email = rc.hget[String]("user:" + u.profileID.toString,"email").getOrElse("")
+                    if(!email.isEmpty) {
+                        val size = rc.scard("posts:user:"+u.profileID.toString).getOrElse(0).toString
+                        val m = rc.smembers[String]("posts:user:"+u.profileID.toString).get
+                        Posts(size,m.map(_.get).map(e => extractPostDetails(e,rc)))
                     } else {
                         ErrorMessage("The given user does not exist")
                     }
