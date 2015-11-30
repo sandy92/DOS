@@ -18,8 +18,15 @@ case class UserDetails(userID: String, name: String, email: String, age: Int) ex
 // Friends list related messages
 case class GetFriendsList(userID: String) extends RestMessage
 case class FriendsList(total: String, friends: Set[Option[RestMessage]]) extends RestMessage
+case class AddFriend(id: String, requestedBy: String) extends RestMessage
+case class FriendAdded(message: String) extends RestMessage
 
 // Posts related messages
+case class CreatePost(message: String, postedBy: String, postedOn: String) extends RestMessage {
+    require(!message.isEmpty, "The post id should not be empty" )
+    require(!postedBy.isEmpty, "The 'post' sender profile id should not be empty" )
+    require(!postedOn.isEmpty, "The 'post' receiver profile id should not be empty" )
+}
 case class PostCreated(id: String) extends RestMessage
 case class GetPosts(profileID: String) extends RestMessage
 case class Posts(total: String, posts: Set[Option[RestMessage]]) extends RestMessage
@@ -49,11 +56,13 @@ case class CreateAlbum(name: String, profileID: String) extends RestMessage {
     require(!profileID.isEmpty, "The profile ID should not be empty" )
 }
 case class AlbumCreated(id: String) extends RestMessage
-case class GetAlbumDetails(pageID: String) extends RestMessage
-case class DeleteAlbum(pageID: String) extends RestMessage
+case class GetAlbumsList(profileID: String) extends RestMessage
+case class Albums(total: String, albums: Set[Option[RestMessage]]) extends RestMessage
+case class DeleteAlbum(albumID: String) extends RestMessage
 case class AlbumDeleted(message: String) extends RestMessage
-case class AlbumDetails(pageID: String, name: String, webAddress: String, about: String) extends RestMessage
-case class GetPhotosFromAlbum(id: String) extends RestMessage
+case class GetAlbumDetails(albumID: String) extends RestMessage
+case class AlbumDetails(albumID: String, name: String, profileID: String, profileType: String) extends RestMessage
+case class GetPhotosFromAlbum(albumID: String) extends RestMessage
 
 // Photo related messages
 case class UploadPhoto(name: String, profileID: String, image: Array[Byte], albumID: String) extends RestMessage {
@@ -63,11 +72,12 @@ case class UploadPhoto(name: String, profileID: String, image: Array[Byte], albu
     require(!albumID.isEmpty, "The album id should not be empty" )
 }
 case class PhotoUploaded(id: String) extends RestMessage
-/*case class GetAlbumDetails(pageID: String) extends RestMessage
-case class DeleteAlbum(pageID: String) extends RestMessage
-case class AlbumDeleted(message: String) extends RestMessage
-case class AlbumDetails(pageID: String, name: String, webAddress: String, about: String) extends RestMessage
-case class GetPhotos(id: String) extends RestMessage*/
+case class GetPhotoDetails(photoID: String) extends RestMessage
+case class DeletePhoto(photoID: String) extends RestMessage
+case class PhotoDeleted(message: String) extends RestMessage
+case class PhotoDetails(photoID: String, name: String, data: String, albumID: String) extends RestMessage
+case class GetPhotos(id: String) extends RestMessage
+case class Photos(total: String, photos: Set[Option[RestMessage]]) extends RestMessage
 
 // Like
 case class GetLikesOf(id: String) extends RestMessage

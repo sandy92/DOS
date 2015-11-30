@@ -37,6 +37,32 @@ class Post extends Actor with RedisApi with LikedBy with IDGenerator {
             }
             sender ! x
         }
+        case u: CreatePost => {
+            val x = {
+                val pbl = prefixLookup(u.postedBy.headOption.getOrElse("").toString)
+                val pol = prefixLookup(u.postedBy.headOption.getOrElse("").toString)
+                if(pbl != "user" && pbl != "page") {
+                    ErrorMessage("Not a valid sender profile id")
+                } else if (pbl != "user" && pbl != "page") {
+                    ErrorMessage("Not a valid receiver profile id")
+                } else {
+                    if(!rc.exists(pbl+":"+u.postedBy)) {
+                        ErrorMessage("Not a valid sender profile id")
+                    } else if(!rc.exists(pol+":"+u.postedOn)) {
+                        ErrorMessage("Not a valid receiver profile id")
+                    } else {
+                        val postID = getUniqueID("post")
+                        if(rc.hmset("post:"+postID, Map("message" -> u.message, "postedBy" -> (pbl+":"+u.postedBy).toString, "postedOn" -> (pol+":"+u.postedOn).toString, "date" -> (System.currentTimeMillis / 1000).toString))) {
+                            rc.sadd("posts:"+pol+":"+u.postedOn, "post:"+postID)
+                            PostCreated(postID)
+                        } else {
+                            ErrorMessage("Unable to create the post")
+                        }
+                    }
+                }
+            }
+            sender ! x
+        }
         case u: DeletePost => {
             val x = {
                 if(u.postID.headOption.getOrElse("").toString == prefix("post").toString) {

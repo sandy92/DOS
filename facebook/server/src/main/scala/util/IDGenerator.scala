@@ -14,6 +14,7 @@ trait IDGenerator {
     def prefixLookup(prefix: String) = prefix match {
         case "1" => "user"
         case "2" => "page"
+        case "3" => "album"
         case "4" => "photo"
         case "5" => "post"
         case "6" => "comment"
@@ -31,6 +32,28 @@ trait IDGenerator {
             x(0) match {
                 case "user" => Some(UserDetails(x(1),m.get("name").getOrElse(""),m.get("email").getOrElse(""),m.get("age").getOrElse("0").toInt))
                 case "page" => Some(PageDetails(x(1),m.get("name").getOrElse(""),m.get("webAddress").getOrElse(""),m.get("about").getOrElse("")))
+                case "album" => 
+                    var profile = m.get("profile").getOrElse("")
+                    var profileID = ""
+                    var profileType = ""
+                    if(!profile.isEmpty) {
+                        val p = profile.split(":")
+                        if(p.length > 1 ) {
+                            profileID = p(1) 
+                            profileType = p(0)
+                        }
+                    }
+                    Some(AlbumDetails(x(1),m.get("name").getOrElse(""),profileID,profileType))
+                case "photo" => 
+                    val album = m.get("album").getOrElse("")
+                    var albumID = ""
+                    if(!album.isEmpty) {
+                        val a = album.split(":")
+                        if(a.length > 1) {
+                            albumID = a(1) 
+                        }
+                    }
+                    Some(PhotoDetails(x(1),m.get("name").getOrElse(""),m.get("data").getOrElse(""),albumID))
                 case _ => None
             }
         } else {

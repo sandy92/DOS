@@ -92,6 +92,40 @@ class Page extends Profile with LikedBy with IDGenerator {
             }
             sender ! x
         }
+        case u: GetPosts => {
+            val x = {
+                if(u.profileID.headOption.getOrElse("").toString == prefix("user").toString) {
+                    val webAddress = rc.hget[String]("page:" + u.profileID.toString,"webAddress").getOrElse("")
+                    if(!webAddress.isEmpty) {
+                        val size = rc.scard("posts:page:"+u.profileID.toString).getOrElse(0).toString
+                        val m = rc.smembers[String]("posts:page:"+u.profileID.toString).get
+                        Posts(size,m.map(_.get).map(e => extractPostDetails(e,rc)))
+                    } else {
+                        ErrorMessage("The given page does not exist")
+                    }
+                } else {
+                    ErrorMessage("Not a valid page id")
+                }
+            }
+            sender ! x
+        }
+        case u: GetAlbumsList => {
+            val x = {
+                if(u.profileID.headOption.getOrElse("").toString == prefix("page").toString) {
+                    val webAddress = rc.hget[String]("page:" + u.profileID.toString,"webAddress").getOrElse("")
+                    if(!webAddress.isEmpty) {
+                        val size = rc.scard("albumIDs:page:"+u.profileID.toString).getOrElse(0).toString
+                        val m = rc.smembers[String]("albumIDs:page:"+u.profileID.toString).get
+                        Albums(size,m.map(_.get).map(e => extractDetails(e,rc.hgetall[String,String](e).getOrElse(Map()))))
+                    } else {
+                        ErrorMessage("The given page does not exist")
+                    }
+                } else {
+                    ErrorMessage("Not a valid page id")
+                }
+            }
+            sender ! x
+        }
         case _ =>
     }
 }

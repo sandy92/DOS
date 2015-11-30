@@ -109,6 +109,47 @@ class User extends Profile with IDGenerator {
             }
             sender ! x
         }
+        case u: GetAlbumsList => {
+            val x = {
+                if(u.profileID.headOption.getOrElse("").toString == prefix("user").toString) {
+                    val email = rc.hget[String]("user:" + u.profileID.toString,"email").getOrElse("")
+                    if(!email.isEmpty) {
+                        val size = rc.scard("albumIDs:user:"+u.profileID.toString).getOrElse(0).toString
+                        val m = rc.smembers[String]("albumIDs:user:"+u.profileID.toString).get
+                        Albums(size,m.map(_.get).map(e => extractDetails(e,rc.hgetall[String,String](e).getOrElse(Map()))))
+                    } else {
+                        ErrorMessage("The given user does not exist")
+                    }
+                } else {
+                    ErrorMessage("Not a valid user id")
+                }
+            }
+            sender ! x
+        }
+        case u: AddFriend => {
+            val x = {
+                if(u.id.headOption.getOrElse("").toString == prefix("user").toString) {
+                    if(u.requestedBy.headOption.getOrElse("").toString == prefix("user").toString) {
+                        if(rc.exists("user:"+u.id)) {
+                            if(rc.exists("user:"+u.requestedBy)) {
+                                rc.sadd("friends:user:"+u.id,"user:"+u.requestedBy)
+                                rc.sadd("friends:user:"+u.requestedBy,"user:"+u.id)
+                                FriendAdded("Added " + u.requestedBy + " to the friends list")
+                            } else {
+                                ErrorMessage("The given friend does not exist")
+                            }
+                        } else {
+                            ErrorMessage("The given user does not exist")
+                        }
+                    } else {
+                        ErrorMessage("Not a valid friend id")
+                    }
+                } else {
+                    ErrorMessage("Not a valid user id")
+                }
+            }
+            sender ! x
+        }
         case _ =>
     }
 }

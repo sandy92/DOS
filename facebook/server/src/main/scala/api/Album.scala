@@ -26,22 +26,37 @@ class Album extends Actor with RedisApi with IDGenerator with LikedBy {
             val x = Album.createAlbum(a.name,a.profileID)
             sender ! x
         }
-        case u: GetUserDetails => {
+        case u: GetAlbumDetails => {
             val x = {
-                if(u.userID.headOption.getOrElse("").toString == prefix("user").toString) {
-                    val m = rc.hgetall[String,String]("user:"+u.userID.toString).get
+                if(u.albumID.headOption.getOrElse("").toString == prefix("album").toString) {
+                    val m = rc.hgetall[String,String]("album:"+u.albumID.toString).get
                     if(!m.isEmpty) {
-                        extractDetails("user:"+u.userID.toString,m).get
+                        extractDetails("album:"+u.albumID.toString,m).get
                     } else {
-                        ErrorMessage("User Not found")
+                        ErrorMessage("Album Not found")
                     }
                 } else {
-                    ErrorMessage("Not a valid user id")
+                    ErrorMessage("Not a valid album id")
                 }
             }
             sender ! x
         }
-        case u: DeleteUser => {
+        case u: GetPhotosFromAlbum => {
+            val x = {
+                if(u.albumID.headOption.getOrElse("").toString == prefix("album").toString) {
+                    val m = rc.smembers[String]("photos:album:"+u.albumID.toString).get
+                    if(!m.isEmpty) {
+                        Photos(m.size.toString,m.map(_.get).map(e => extractDetails(e,rc.hgetall[String,String](e).getOrElse(Map()))))
+                    } else {
+                        ErrorMessage("Photos are not available")
+                    }
+                } else {
+                    ErrorMessage("Not a valid album id")
+                }
+            }
+            sender ! x
+        }
+        /*case u: DeleteUser => {
             val x = {
                 if(u.userID.headOption.getOrElse("").toString == prefix("user").toString) {
                     val email = rc.hget[String]("user:" + u.userID.toString,"email").getOrElse("")
@@ -57,7 +72,7 @@ class Album extends Actor with RedisApi with IDGenerator with LikedBy {
                 }
             }
             sender ! x
-        }
+        }*/
         case _ =>
     }
 }
@@ -68,9 +83,9 @@ object Album extends RedisApi with IDGenerator {
         val albumID = getUniqueID("album")
         if(profile == "user") {
             if(rc.exists("user:"+profileID)) {
-                println("here")
-                if(rc.hsetnx("albums:user:"+profileID,name,albumID)) {
-                    rc.sadd("albumIDs:user:"+profileID,albumID)
+                if(rc.hsetnx("albums:user:"+profileID,name,"album:"+albumID)) {
+                    rc.sadd("albumIDs:user:"+profileID,"album:"+albumID)
+                    rc.hmset("album:"+albumID,Map("name" -> name, "profile" -> ("user:"+profileID).toString))
                     AlbumCreated(albumID)
                 } else {
                     ErrorMessage("Given album name already exists")
@@ -78,8 +93,9 @@ object Album extends RedisApi with IDGenerator {
             }
         } else if (profile == "page"){
             if(rc.exists("page:"+profileID)) {
-                if(rc.hsetnx("albums:page:"+profileID,name,albumID)) {
-                    rc.sadd("albumIDs:page:"+profileID,albumID)
+                if(rc.hsetnx("albums:page:"+profileID,name,"album:"+albumID)) {
+                    rc.sadd("albumIDs:page:"+profileID,"album:"+albumID)
+                    rc.hmset("album:"+albumID,Map("name" -> name, "profile" -> ("page:"+profileID).toString))
                     AlbumCreated(albumID)
                 } else {
                     ErrorMessage("Given album name already exists")

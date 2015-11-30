@@ -96,6 +96,13 @@ class MyServiceActor extends HttpService with Actor with FormDataUnmarshallers w
               user {
                 GetFriendsList(id)
               }
+            } ~ 
+            put {
+              formFields('requestedBy) { (requestedBy) =>
+                user {
+                  AddFriend(id, requestedBy)
+                }
+              }
             }
           }
         } ~
@@ -104,6 +111,22 @@ class MyServiceActor extends HttpService with Actor with FormDataUnmarshallers w
             get {
               user {
                 GetPosts(id)
+              }
+            } ~
+            put {
+              formFields('message, 'postedBy) { (message, postedBy) => 
+                fbPost {
+                  CreatePost(message, postedBy, id)
+                } 
+              }
+            }
+          }
+        } ~
+        pathPrefix("albums") {
+          pathEnd {
+            get {
+              user {
+                GetAlbumsList(id)
               }
             }
           }
@@ -152,6 +175,31 @@ class MyServiceActor extends HttpService with Actor with FormDataUnmarshallers w
               }
             }
           }
+        } ~
+        pathPrefix("posts") {
+          pathEnd {
+            get {
+              page {
+                GetPosts(id)
+              }
+            } ~
+            put {
+              formFields('message, 'postedBy) { (message, postedBy) => 
+                fbPost {
+                  CreatePost(message, postedBy, id)
+                } 
+              }
+            }
+          }
+        } ~
+        pathPrefix("albums") {
+          pathEnd {
+            get {
+              page {
+                GetAlbumsList(id)
+              }
+            }
+          }
         }
       }
     } ~
@@ -179,20 +227,20 @@ class MyServiceActor extends HttpService with Actor with FormDataUnmarshallers w
       pathPrefix("[0-9]+".r) { id =>
         pathEnd {
           get {
-            page {
-              GetPageDetails(id)
+            album {
+              GetAlbumDetails(id)
             }
           } ~ 
           delete {
-            page {
-              DeletePage(id)
+            album {
+              DeleteAlbum(id)
             }
           }
         } ~
         pathPrefix("likes") {
           pathEnd {
             get {
-              page {
+              album {
                 GetLikedBy(id)
               }
             }
@@ -201,7 +249,7 @@ class MyServiceActor extends HttpService with Actor with FormDataUnmarshallers w
         pathPrefix("photos") {
           pathEnd {
             get {
-              page {
+              album {
                 GetPhotosFromAlbum(id)
               }
             }
@@ -239,20 +287,20 @@ class MyServiceActor extends HttpService with Actor with FormDataUnmarshallers w
       pathPrefix("[0-9]+".r) { id =>
         pathEnd {
           get {
-            page {
-              GetPageDetails(id)
+            photo {
+              GetPhotoDetails(id)
             }
           } ~ 
           delete {
-            page {
-              DeletePage(id)
+            photo {
+              DeletePhoto(id)
             }
           }
         } ~
         pathPrefix("likes") {
           pathEnd {
             get {
-              page {
+              photo {
                 GetLikedBy(id)
               }
             }

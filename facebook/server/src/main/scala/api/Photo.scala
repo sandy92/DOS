@@ -27,10 +27,10 @@ class Photo extends Actor with RedisApi with IDGenerator with LikedBy {
             val x = {
                 val profile = prefixLookup(u.profileID.headOption.getOrElse("").toString)
                 if (profile == "user" || profile == "page") {
-                    if(rc.sismember("albumIDs:"+profile+":"+u.profileID,u.albumID)) {
+                    if(rc.sismember("albumIDs:"+profile+":"+u.profileID,"album:"+u.albumID)) {
                         val photoData = new sun.misc.BASE64Encoder().encode(u.image)
-                        if(rc.hmset("photo:"+photoID,Map("name"->u.name,"data"->photoData, "albumID" -> u.albumID))) {
-                            rc.rpush("photos:album:"+u.albumID, "photo:"+photoID)
+                        if(rc.hmset("photo:"+photoID,Map("name"->u.name,"data"->photoData, "album" -> ("album:"+u.albumID).toString))) {
+                            rc.sadd("photos:album:"+u.albumID, "photo:"+photoID)
                             PhotoUploaded(photoID)
                         } else {
                             ErrorMessage("Unable to create the image")
@@ -44,17 +44,17 @@ class Photo extends Actor with RedisApi with IDGenerator with LikedBy {
             }
             sender ! x
         }
-        case u: GetUserDetails => {
+        case u: GetPhotoDetails => {
             val x = {
-                if(u.userID.headOption.getOrElse("").toString == prefix("user").toString) {
-                    val m = rc.hgetall[String,String]("user:"+u.userID.toString).get
+                if(u.photoID.headOption.getOrElse("").toString == prefix("photo").toString) {
+                    val m = rc.hgetall[String,String]("photo:"+u.photoID.toString).get
                     if(!m.isEmpty) {
-                        extractDetails("user:"+u.userID.toString,m)
+                        extractDetails("photo:"+u.photoID.toString,m).get
                     } else {
-                        ErrorMessage("User Not found")
+                        ErrorMessage("Photo Not found")
                     }
                 } else {
-                    ErrorMessage("Not a valid user id")
+                    ErrorMessage("Not a valid photo id")
                 }
             }
             sender ! x
