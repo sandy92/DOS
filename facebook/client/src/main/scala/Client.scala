@@ -74,10 +74,10 @@ class ClientActor extends Actor {
             userID = id
             Data.users += (id -> self)
           } else {
-            println("Error:" + x.get("error").getOrElse(""))
+            println("Message:" + x.get("error").getOrElse(""))
           }
         case Failure(e) =>
-          println("Error: Unable to create user")
+          println("Message: Unable to create user")
       }
     }
   }
@@ -93,10 +93,10 @@ class ClientActor extends Actor {
         if(!id.isEmpty) {
           albums += (albumName -> id)
         } else {
-          println("Error:" + x.get("error").getOrElse(""))
+          println("Message:" + x.get("error").getOrElse(""))
         }
       case Failure(e) =>
-        println("Error: Unable to create album")
+        println("Message: Unable to create album")
     }
   }
 
@@ -108,18 +108,18 @@ class ClientActor extends Actor {
         val x = r.entity.asString.parseJson.asJsObject
         val e = x.fields.get("error")
         if(e.isDefined) {
-          println("Error: " + e.get.toString)
+          println("Message: " + e.get.toString)
         } else {
           val total = x.fields.get("total")
           if(total.isDefined) {
             val m = x.fields.get("albums").get.convertTo[Set[JsValue]].filter(_ != JsNull).map(_.convertTo[Map[String,String]])
             m.foreach(e => albums += (e.get("name").getOrElse("") -> e.get("albumID").getOrElse("")))
           } else {
-            println("Error: Invalid Json format")
+            println("Message: Invalid Json format")
           }
         }
       case Failure(e) =>
-        println("Error: Unable to get the album list")
+        println("Message: Unable to get the album list")
     }
   }
 
@@ -134,17 +134,17 @@ class ClientActor extends Actor {
           val x = r.entity.asString.parseJson.asJsObject
           val e = x.fields.get("error")
           if(e.isDefined) {
-            println("Error: " + e.get.toString)
+            println("Message: " + e.get.toString)
           } else {
             val total = x.fields.get("total")
             if(total.isDefined) {
               println("Total photos found: " + total.getOrElse("0").toString)
             } else {
-              println("Error: Invalid Json format")
+              println("Message: Invalid Json format")
             }
           }
         case Failure(e) =>
-          println("Error: Unable to get the posts")
+          println("Message: Unable to get the posts")
        }
     }
   }
@@ -178,10 +178,10 @@ class ClientActor extends Actor {
           if(!id.isEmpty) {
             println("Photo uploaded successfully - id - "+ id.toString)
           } else {
-            println("Error:" + x.get("error").getOrElse(""))
+            println("Message:" + x.get("error").getOrElse(""))
           }
         case Failure(e) =>
-          println("Error: Unable to upload the photo")
+          println("Message: Unable to upload the photo")
       }
     }
   }
@@ -203,10 +203,10 @@ class ClientActor extends Actor {
               f.ref ! AddtoFriendList(getClientData)
               println("Success: " + message.toString)
             } else {
-              println("Error:" + x.get("error").getOrElse(""))
+              println("Message:" + x.get("error").getOrElse(""))
             }
           case Failure(e) =>
-            println("Error: Unable to add friends")
+            println("Message: Unable to add friends")
         }
       }
     }
@@ -231,10 +231,10 @@ class ClientActor extends Actor {
           if(!message.isEmpty) {
             println("Success: " + message.toString)
           } else {
-            println("Error:" + x.get("error").getOrElse(""))
+            println("Message:" + x.get("error").getOrElse(""))
           }
         case Failure(e) =>
-          println("Error: Unable to post on friend's wall")
+          println("Message: Unable to post on friend's wall")
       }
     }
   }
@@ -247,17 +247,17 @@ class ClientActor extends Actor {
         val x = r.entity.asString.parseJson.asJsObject
         val e = x.fields.get("error")
         if(e.isDefined) {
-          println("Error: " + e.get.toString)
+          println("Message: " + e.get.toString)
         } else {
           val total = x.fields.get("total")
           if(total.isDefined) {
             println("Total posts found: " + total.getOrElse("0").toString)
           } else {
-            println("Error: Invalid Json format")
+            println("Message: Invalid Json format")
           }
         }
       case Failure(e) =>
-        println("Error: Unable to get the post list")
+        println("Message: Unable to get the post list")
     }
   }
 
@@ -272,7 +272,7 @@ class ClientActor extends Actor {
         var count = 0
         system.scheduler.schedule(0 seconds,2000 + Random.nextInt(2000) milliseconds) {
           count = count + 1
-          if(count >= 100) {
+          if(count >= 1000) {
             self ! StopSystem
           }
           if(!userID.isEmpty) {
