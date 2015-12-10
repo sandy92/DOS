@@ -89,4 +89,9 @@ case class ErrorMessage(error: String) extends RestMessage
 trait RedisApi {
   import com.redis._
   val rc = new RedisClient("localhost", 6379)
+
+  def closeRedisConnection = {
+    rc.quit
+    rc.disconnect
+  }
 }

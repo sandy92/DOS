@@ -4,6 +4,7 @@ import serialization._
 import Parse.Implicits._
 
 class Post extends Actor with RedisApi with LikedBy with IDGenerator {
+    override def postStop = closeRedisConnection
     def sendLikedBy(id: String, sender: ActorRef) = {
         val x = {
             if(id.headOption.getOrElse("").toString == prefix("post").toString) {

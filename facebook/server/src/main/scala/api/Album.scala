@@ -4,6 +4,8 @@ import serialization._
 import Parse.Implicits._
 
 class Album extends Actor with RedisApi with IDGenerator with LikedBy {
+    override def postStop = closeRedisConnection
+    
     def sendLikedBy(id: String, sender: ActorRef) = {
         val x = {
             if(id.headOption.getOrElse("").toString == prefix("page").toString) {

@@ -1,6 +1,6 @@
 lazy val commonSettings = Seq(
 name := "Facebook API",
-version := "1.0",
+version := "1.1",
 scalaVersion := "2.11.7",
 resolvers += "Typesafe Repository" at "http://repo.typesafe.com/typesafe/releases/",
 resolvers += "spray repo" at "http://repo.spray.io",
