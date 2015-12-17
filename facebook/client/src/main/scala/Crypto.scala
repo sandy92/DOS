@@ -59,14 +59,18 @@ object Crypto {
     }
 
     object aes {
-        def encrypt(message: String, key: SecretKey, iv: IvParameterSpec): String = {
+        def encrypt(message: String, key: SecretKey, initVector: String): String = {
             val cipher = Cipher.getInstance("AES/CBC/PKCS5Padding")
+            // val iv = new IvParameterSpec(new sun.misc.BASE64Decoder().decodeBuffer(initVector))
+            val iv = new IvParameterSpec(initVector.getBytes)
             cipher.init(Cipher.ENCRYPT_MODE, key, iv)
-            new sun.misc.BASE64Encoder().encode(cipher.doFinal(message.getBytes()))
+            new sun.misc.BASE64Encoder().encode(cipher.doFinal(message.getBytes("UTF-8")))
         }
 
-        def decrypt(encryptedMessage: String, key: SecretKey, iv: IvParameterSpec): String = {
+        def decrypt(encryptedMessage: String, key: SecretKey, initVector: String): String = {
             val cipher = Cipher.getInstance("AES/CBC/PKCS5Padding")
+            val x = new sun.misc.BASE64Decoder().decodeBuffer(initVector)
+            val iv = new IvParameterSpec(initVector.getBytes)
             cipher.init(Cipher.DECRYPT_MODE, key, iv)
             val stringBytes = cipher.doFinal(new sun.misc.BASE64Decoder().decodeBuffer(encryptedMessage))
             new String(stringBytes)
@@ -217,7 +221,7 @@ object CryptoTest {
         println(Crypto.aes.encodeKey(Crypto.aes.decodeKey(Crypto.aes.encodeKey(k))));
         println("--------")
 
-        val message = "Hello Crypto world!!"
+       /* val message = "Hello Crypto world!!"
         println(message)
         println("--------")
 
@@ -229,9 +233,6 @@ object CryptoTest {
         println(encryptedMessage)
         println("--------")
         println(Crypto.aes.decrypt(encryptedMessage,k,iv))
-        println("--------")
+        println("--------")*/
     }
 }
-
-// CryptoTest.testRSA
-// CryptoTest.testAES

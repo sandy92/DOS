@@ -114,9 +114,9 @@ class MyServiceActor extends HttpService with Actor with FormDataUnmarshallers w
               }
             } ~
             put {
-              formFields('message, 'postedBy) { (message, postedBy) => 
+              formFields('message, 'postedBy, 'accessList) { (message, postedBy, accessList) => 
                 fbPost {
-                  CreatePost(message, postedBy, id)
+                  CreatePost(message, postedBy, id, accessList)
                 } 
               }
             }
@@ -184,9 +184,9 @@ class MyServiceActor extends HttpService with Actor with FormDataUnmarshallers w
               }
             } ~
             put {
-              formFields('message, 'postedBy) { (message, postedBy) => 
+              formFields('message, 'postedBy, 'accessList) { (message, postedBy, accessList) => 
                 fbPost {
-                  CreatePost(message, postedBy, id)
+                  CreatePost(message, postedBy, id, accessList)
                 } 
               }
             }
@@ -321,8 +321,10 @@ class MyServiceActor extends HttpService with Actor with FormDataUnmarshallers w
       pathPrefix("[0-9]+".r) { id =>
         pathEnd {
           get {
-            fbPost {
-              GetPostDetails(id)
+            parameters('requestedBy) { requestedBy =>
+              fbPost {
+                GetPostDetails(id,requestedBy)
+              }
             }
           } ~ 
           delete {

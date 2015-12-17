@@ -17,11 +17,18 @@ import spray.routing._
 import spray.httpx.SprayJsonSupport._
 import MediaTypes._
 
+import java.security._
+import java.security.spec._
+import javax.crypto._
+import javax.crypto.spec._
+
 case object StartActor
 case object StopSystem
+case object SimulateSecurePost
+case object SimulateGetSecurePost
 
 // case class Client(id: String, ref: ActorRef, publicKey: String)
-case class Client(id: String, publicKey: String)
+case class Client(id: String, publicKey: PublicKey)
 case class AddtoFriendList(c: Client)
 
 object Client2 extends App {
@@ -34,6 +41,9 @@ object Client2 extends App {
     Data.userRefs += n
     n ! StartActor
   }
+
+  // Data.userRefs(0) ! SimulateSecurePost
+  Data.userRefs(0) ! SimulateGetSecurePost
 }
 
 class ClientActor extends Actor {
@@ -59,13 +69,14 @@ class ClientActor extends Actor {
 
   val pipeline: HttpRequest => Future[HttpResponse] = sendReceive
 
+  def randomString(length: Int): String = Random.alphanumeric.take(length).mkString
+
   def simulateGetFriendsList = {
     // Get Albums
-    println("calling simulateGetFriendsList on " + self.path.toString)
-    println(userID)
+    // println("calling simulateGetFriendsList on " + self.path.toString)
+    // println(userID)
     pipeline(Get("http://localhost:8080/user/"+userID+"/friends")) onComplete {
       case Success(r) =>
-        println("Success")
         val x = r.entity.asString.parseJson.asJsObject
         val e = x.fields.get("error")
         if(e.isDefined) {
@@ -73,12 +84,9 @@ class ClientActor extends Actor {
         } else {
           val total = x.fields.get("total")
           if(total.isDefined) {
-            //println(x.fields.get("friends").get.convertTo[Set[JsValue]].filter(_ != JsNull).map(_.convertTo[Map[String,Either[String,Int]]]))
             val m = x.fields.get("friends").get.convertTo[Set[JsValue]].filter(_ != JsNull).map(_.convertTo[Map[String,Either[String,Int]]])
-            // println(m)
-            // m.foreach(e => albums += (e.get("name").getOrElse("") -> e.get("albumID").getOrElse("")))
-            m.foreach(e => friends += extractFriendInfo(e,context))
-            println(friends)
+            m.foreach(e => this.friends += extractFriendInfo(e,context))
+            // println(friends)
           } else {
             println("Message: Invalid Json format")
           }
@@ -90,10 +98,103 @@ class ClientActor extends Actor {
 
   def extractFriendInfo(m: Map[String,Either[String,Int]], c: ActorContext) = {
     val userID = m.get("userID").get.left.toOption.get
-    val publicKey = m.get("publicKey").get.left.toOption.get
+    val publicKey = Crypto.rsa.decodePublicKey(m.get("publicKey").get.left.toOption.get)
 
     Client(userID,publicKey)
   }
+
+  def simulateSecurePost = {
+    // Post on friends wall
+    println("calling simulateSecurePost on " + self.path.toString)
+    if(!friends.isEmpty) {
+      val a = scala.collection.mutable.ArrayBuffer.empty[Int]
+      a += scala.util.Random.nextInt(friends.length)
+      a += scala.util.Random.nextInt(friends.length)
+      a += scala.util.Random.nextInt(friends.length)
+      val b = a.distinct
+      var m = "Testing secure post"
+      var key = Crypto.aes.generateSecretKey
+      var initVector = randomString(16)
+      // var iv = new IvParameterSpec(Crypto.srng.generateSeed(16))
+      val em = Crypto.aes.encrypt(m,key,initVector)
+      val accessList = Map(userID -> ((initVector)+"~~~~~~"+Crypto.rsa.encrypt(Crypto.aes.encodeKey(key),this.publicKey))) ++ b.map(e => friends(e).id -> ((initVector)+"~~~~~~"+Crypto.rsa.encrypt(Crypto.aes.encodeKey(key),friends(e).publicKey))).toMap
+
+      // Erasing data from memory
+      m = null
+      key = null
+      //iv = null
+
+      pipeline(Put("http://localhost:8080/user/"+userID+"/posts", FormData(Map("message" -> em, "postedBy" -> userID, "accessList" -> accessList.toJson.toString)))) onComplete {
+        case Success(r) =>
+          val x = r.entity.asString.parseJson.convertTo[Map[String,String]]
+          val id = x.get("id").getOrElse("")
+          if(!id.isEmpty) {
+            println("Post Created Successfully - id: " + id.toString)
+          } else {
+            println("Error:" + x.get("error").getOrElse(""))
+          }
+        case Failure(e) =>
+          println("Message: Unable to create a post")
+      }
+    }
+  }
+
+
+  def simulateGetSecurePost = {
+    // Post on friends wall
+    println("calling simulateGetSecurePost on " + self.path.toString)
+    val postID = "5145034240515909"
+
+    pipeline(Get("http://localhost:8080/post/"+postID+"?requestedBy="+userID)) onComplete {
+      case Success(r) =>
+        val x = r.entity.asString.parseJson.asJsObject
+        val e = x.fields.get("error")
+        if(e.isDefined) {
+          println("Message: " + e.get.toString)
+        } else {
+          val encryptedMessage = x.fields.get("message").getOrElse("").toString.replaceAll("^\"|\"$", "")
+          val encryptedKey = x.fields.get("key").getOrElse("").toString.replaceAll("^\"|\"$", "")
+          if(!encryptedMessage.isEmpty && !encryptedKey.isEmpty) {
+            var temp = encryptedKey.split("~~~~~~")
+            var t1 = temp(1).replace("\\n","\n")
+            var k = Crypto.rsa.decrypt(t1,this.privateKey)
+            var key = Crypto.aes.decodeKey(k)
+            println("--------")
+            println(Crypto.aes.decrypt(encryptedMessage,key,temp(0)))
+            println("--------")
+            temp = null
+            t1 = null
+            k = null
+            key = null
+          } else {
+            println("Error: Bad data format")
+          }
+        }
+      case Failure(e) =>
+        println("Message: Unable to create a post")
+    }
+  }
+
+  /*def simulatePostOnFriendsWall = {
+    // Post on friends wall
+    println("calling simulatePostOnFriendsWall on " + self.path.toString)
+    if(!friends.isEmpty) {
+      val i = scala.util.Random.nextInt(friends.length)
+
+      pipeline(Put("http://localhost:8080/user/"+(friends(i).id)+"/posts", FormData(Map("message" -> randomString(50),"postedBy" -> userID)))) onComplete {
+        case Success(r) =>
+          val x = r.entity.asString.parseJson.convertTo[Map[String,String]]
+          val message = x.get("message").getOrElse("")
+          if(!message.isEmpty) {
+            println("Success: " + message.toString)
+          } else {
+            println("Message:" + x.get("error").getOrElse(""))
+          }
+        case Failure(e) =>
+          println("Message: Unable to post on friend's wall")
+      }
+    }
+  }*/
 
   /*// var userID: String = "1144892814719449"
   var userID: String = ""
@@ -107,7 +208,7 @@ class ClientActor extends Actor {
 
   
 
-  def randomString(length: Int): String = Random.alphanumeric.take(length).mkString
+  
 
   def formHeaders(params: (String, String)*) =
     Seq(HttpHeaders.`Content-Disposition`("form-data", Map(params: _*)))
@@ -238,38 +339,6 @@ class ClientActor extends Actor {
     }
   }
 
-  def simulateAddFriends = {
-    // Add friends
-    println("calling simulateAddFriends on " + self.path.toString)
-    val f1 = Data.getRandomUser
-
-    if(f1.isDefined) {
-      val f = f1.get
-      if(f.id != userID) {
-        pipeline(Put("http://localhost:8080/user/"+(f.id)+"/friends", FormData(Map("requestedBy" -> userID)))) onComplete {
-          case Success(r) =>
-            val x = r.entity.asString.parseJson.convertTo[Map[String,String]]
-            val message = x.get("message").getOrElse("")
-            if(!message.isEmpty) {
-              addtoFriendList(f)
-              f.ref ! AddtoFriendList(getClientData)
-              println("Success: " + message.toString)
-            } else {
-              println("Message:" + x.get("error").getOrElse(""))
-            }
-          case Failure(e) =>
-            println("Message: Unable to add friends")
-        }
-      }
-    }
-  }
-
-  def addtoFriendList(c: Client) = {
-    if(!(friends contains c)) {
-      friends += c
-    }
-  }
-
   def simulatePostOnFriendsWall = {
     // Post on friends wall
     println("calling simulatePostOnFriendsWall on " + self.path.toString)
@@ -316,7 +385,12 @@ class ClientActor extends Actor {
   def receive = {
     case StartActor => {
       simulateGetFriendsList
+      Thread sleep 2000
     }
+    case SimulateSecurePost => {
+      simulateSecurePost
+    }
+    case SimulateGetSecurePost => simulateGetSecurePost
     // case AddtoFriendList(c: Client) => addtoFriendList(c)
     case StopSystem => system.shutdown
     case _ => println(self)

@@ -99,7 +99,7 @@ class User extends Profile with IDGenerator {
                     if(!email.isEmpty) {
                         val size = rc.scard("posts:user:"+u.profileID.toString).getOrElse(0).toString
                         val m = rc.smembers[String]("posts:user:"+u.profileID.toString).get
-                        Posts(size,m.map(_.get).map(e => extractPostDetails(e,rc)))
+                        Posts(size,m.map(_.get).map(e => extractPostDetails(e,"user:"+u.profileID.toString,rc)))
                     } else {
                         ErrorMessage("The given user does not exist")
                     }

@@ -96,11 +96,11 @@ object MyJsonProtocol extends DefaultJsonProtocol {
     implicit val FriendAddedFormat = jsonFormat1(FriendAdded)
 
     // Posts formats
-    implicit val createPostFormat = jsonFormat3(CreatePost)
+    implicit val createPostFormat = jsonFormat4(CreatePost)
     implicit val postCreatedFormat = jsonFormat1(PostCreated)
     implicit val getPostsFormat = jsonFormat1(GetPosts)
-    implicit val getPostDetailsFormat = jsonFormat1(GetPostDetails)
-    implicit val postDetailsFormat = jsonFormat4(PostDetails)
+    implicit val getPostDetailsFormat = jsonFormat2(GetPostDetails)
+    implicit val postDetailsFormat = jsonFormat6(PostDetails)
     implicit val postsFormat = jsonFormat2(Posts)
     implicit val deletePostFormat = jsonFormat2(DeletePost)
     implicit val postDeletedFormat = jsonFormat1(PostDeleted)

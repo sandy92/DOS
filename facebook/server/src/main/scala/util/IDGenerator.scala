@@ -61,7 +61,7 @@ trait IDGenerator {
         }
     }
 
-    def extractPostDetails(id: String, rc: RedisClient) = {
+    def extractPostDetails(id: String, requestedBy: String, rc: RedisClient) = {
         val x = id.split(":")
         if(x.length > 1) {
             x(0) match {
@@ -69,7 +69,7 @@ trait IDGenerator {
                     val m = rc.hgetall[String,String](id).getOrElse(Map())
                     val postedBy = rc.hgetall[String,String](m.get("postedBy").getOrElse("")).getOrElse(Map())
                     val postedOn = rc.hgetall[String,String](m.get("postedOn").getOrElse("")).getOrElse(Map())
-                    Some(PostDetails(x(1),extractDetails(m.get("postedBy").getOrElse(""),postedBy),extractDetails(m.get("postedOn").getOrElse(""),postedOn),m.get("date").getOrElse("")))
+                    Some(PostDetails(x(1),m.get("message").getOrElse(""),rc.hget("access:"+id,requestedBy).getOrElse(""),extractDetails(m.get("postedBy").getOrElse(""),postedBy),extractDetails(m.get("postedOn").getOrElse(""),postedOn),m.get("date").getOrElse("")))
                 }
                 case _ => None
             }

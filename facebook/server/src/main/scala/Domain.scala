@@ -23,16 +23,17 @@ case class AddFriend(id: String, requestedBy: String) extends RestMessage
 case class FriendAdded(message: String) extends RestMessage
 
 // Posts related messages
-case class CreatePost(message: String, postedBy: String, postedOn: String) extends RestMessage {
+case class CreatePost(message: String, postedBy: String, postedOn: String, accessList: String) extends RestMessage {
     require(!message.isEmpty, "The post id should not be empty" )
     require(!postedBy.isEmpty, "The 'post' sender profile id should not be empty" )
     require(!postedOn.isEmpty, "The 'post' receiver profile id should not be empty" )
+    require(!accessList.isEmpty, "The access List should not be empty" )
 }
 case class PostCreated(id: String) extends RestMessage
 case class GetPosts(profileID: String) extends RestMessage
 case class Posts(total: String, posts: Set[Option[RestMessage]]) extends RestMessage
-case class GetPostDetails(postID: String) extends RestMessage
-case class PostDetails(postID: String, postedBy: Option[RestMessage], postedOn: Option[RestMessage], date: String) extends RestMessage
+case class GetPostDetails(postID: String, requestedBy: String) extends RestMessage
+case class PostDetails(postID: String, message: String, key: String, postedBy: Option[RestMessage], postedOn: Option[RestMessage], date: String) extends RestMessage
 case class DeletePost(postID: String, profileID: String) extends RestMessage {
     require(!postID.isEmpty, "The post id should not be empty" )
     require(!profileID.isEmpty, "The profile id should not be empty" )
