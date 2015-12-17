@@ -30,7 +30,7 @@ trait IDGenerator {
         val x = id.split(":")
         if(x.length > 1) {
             x(0) match {
-                case "user" => Some(UserDetails(x(1),m.get("name").getOrElse(""),m.get("email").getOrElse(""),m.get("age").getOrElse("0").toInt))
+                case "user" => Some(UserDetails(x(1),m.get("name").getOrElse(""),m.get("email").getOrElse(""),m.get("age").getOrElse("0").toInt,m.get("publicKey").getOrElse("")))
                 case "page" => Some(PageDetails(x(1),m.get("name").getOrElse(""),m.get("webAddress").getOrElse(""),m.get("about").getOrElse("")))
                 case "album" => 
                     var profile = m.get("profile").getOrElse("")

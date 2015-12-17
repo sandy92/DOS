@@ -26,7 +26,7 @@ class User extends Profile with IDGenerator {
             val userID = getUniqueID("user")
             var x: RestMessage = {
                 if(!rc.sismember("users",u.email)) {
-                    val s = rc.hmset("user:"+userID,Map("name"->u.name,"email"->u.email,"age"->u.age))
+                    val s = rc.hmset("user:"+userID,Map("name"->u.name,"email"->u.email,"age"->u.age, "publicKey"->u.publicKey))
                     if (s) {
                         rc.sadd("users",u.email)
                         Album.createAlbum("Photos",userID) match {

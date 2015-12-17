@@ -60,9 +60,9 @@ class MyServiceActor extends HttpService with Actor with FormDataUnmarshallers w
       pathPrefix("create") {
         pathEnd {
           put {
-            formFields('name, 'email ,'age.as[Int]) { (name, email, age) =>
+            formFields('name, 'email ,'age.as[Int], 'publicKey) { (name, email, age, publicKey) =>
               user {
-                CreateUser(name, email,age)
+                CreateUser(name, email,age, publicKey)
               }
             }
           }
