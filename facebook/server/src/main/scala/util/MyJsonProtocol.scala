@@ -117,12 +117,12 @@ object MyJsonProtocol extends DefaultJsonProtocol {
     implicit val albumsFormat = jsonFormat2(Albums)
 
     // Photo formats
-    implicit val uploadPhotoFormat = jsonFormat4(UploadPhoto)
+    implicit val uploadPhotoFormat = jsonFormat5(UploadPhoto)
     implicit val photoUploadedFormat = jsonFormat1(PhotoUploaded)
-    implicit val getPhotoDetailsFormat = jsonFormat1(GetPhotoDetails)
+    implicit val getPhotoDetailsFormat = jsonFormat2(GetPhotoDetails)
     implicit val deletePhotoFormat = jsonFormat1(DeletePhoto)
     implicit val photoDeletedFormat = jsonFormat1(PhotoDeleted)
-    implicit val photoDetailsFormat = jsonFormat4(PhotoDetails)
+    implicit val photoDetailsFormat = jsonFormat5(PhotoDetails)
     implicit val getPhotosFormat = jsonFormat1(GetPhotos)
     implicit val photosFormat = jsonFormat2(Photos)
 }

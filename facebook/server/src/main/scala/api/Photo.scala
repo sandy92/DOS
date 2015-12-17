@@ -2,6 +2,8 @@ import akka.actor._
 import com.redis._
 import serialization._
 import Parse.Implicits._
+import spray.json._
+import MyJsonProtocol._
 
 class Photo extends Actor with RedisApi with IDGenerator with LikedBy {
     override def postStop = closeRedisConnection
@@ -30,9 +32,11 @@ class Photo extends Actor with RedisApi with IDGenerator with LikedBy {
                 val profile = prefixLookup(u.profileID.headOption.getOrElse("").toString)
                 if (profile == "user" || profile == "page") {
                     if(rc.sismember("albumIDs:"+profile+":"+u.profileID,"album:"+u.albumID)) {
-                        val photoData = new sun.misc.BASE64Encoder().encode(u.image)
+                        val photoData = u.image
                         if(rc.hmset("photo:"+photoID,Map("name"->u.name,"data"->photoData, "album" -> ("album:"+u.albumID).toString))) {
                             rc.sadd("photos:album:"+u.albumID, "photo:"+photoID)
+                            val al = u.accessList.parseJson.convertTo[Map[String,String]]
+                            al.foreach(e => rc.hset("access:photo:"+photoID,prefixLookup(e._1.headOption.getOrElse("").toString) + ":" + e._1,e._2))
                             PhotoUploaded(photoID)
                         } else {
                             ErrorMessage("Unable to create the image")
@@ -51,7 +55,12 @@ class Photo extends Actor with RedisApi with IDGenerator with LikedBy {
                 if(u.photoID.headOption.getOrElse("").toString == prefix("photo").toString) {
                     val m = rc.hgetall[String,String]("photo:"+u.photoID.toString).get
                     if(!m.isEmpty) {
-                        extractDetails("photo:"+u.photoID.toString,m).get
+                        val p = prefixLookup(u.requestedBy.headOption.getOrElse("").toString)
+                        if(rc.hexists("access:photo:"+u.photoID.toString,p+":"+u.requestedBy)) {
+                            extractDetails("photo:"+u.photoID.toString,m,rc.hget[String]("access:photo:"+u.photoID.toString,p+":"+u.requestedBy).getOrElse("")).get
+                        } else {
+                            ErrorMessage("Access denied")
+                        }
                     } else {
                         ErrorMessage("Photo Not found")
                     }

@@ -44,7 +44,7 @@ trait IDGenerator {
                         }
                     }
                     Some(AlbumDetails(x(1),m.get("name").getOrElse(""),profileID,profileType))
-                case "photo" => 
+                case "photo" =>
                     val album = m.get("album").getOrElse("")
                     var albumID = ""
                     if(!album.isEmpty) {
@@ -53,11 +53,32 @@ trait IDGenerator {
                             albumID = a(1) 
                         }
                     }
-                    Some(PhotoDetails(x(1),m.get("name").getOrElse(""),m.get("data").getOrElse(""),albumID))
+                    Some(PhotoDetails(x(1),m.get("name").getOrElse(""),m.get("data").getOrElse(""),"",albumID))
                 case _ => None
             }
         } else {
            None
+        }
+    }
+
+    def extractDetails(id: String, m: Map[String,String], key: String) = {
+        val x = id.split(":")
+        if(x.length > 1) {
+            x(0) match {
+            case "photo" =>
+                val album = m.get("album").getOrElse("")
+                var albumID = ""
+                if(!album.isEmpty) {
+                    val a = album.split(":")
+                    if(a.length > 1) {
+                        albumID = a(1) 
+                    }
+                }
+                Some(PhotoDetails(x(1),m.get("name").getOrElse(""),m.get("data").getOrElse(""),key,albumID))
+            case _ => None
+            }
+        } else {
+            None
         }
     }
 

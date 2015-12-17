@@ -67,17 +67,18 @@ case class AlbumDetails(albumID: String, name: String, profileID: String, profil
 case class GetPhotosFromAlbum(albumID: String) extends RestMessage
 
 // Photo related messages
-case class UploadPhoto(name: String, profileID: String, image: Array[Byte], albumID: String) extends RestMessage {
+case class UploadPhoto(name: String, profileID: String, image: String, albumID: String, accessList: String) extends RestMessage {
     require(!name.isEmpty, "The name should not be empty" )
     require(!profileID.isEmpty, "The profile ID should not be empty" )
     require(!image.isEmpty, "Please upload a valid image" )
     require(!albumID.isEmpty, "The album id should not be empty" )
+    require(!accessList.isEmpty, "The access List should not be empty" )
 }
 case class PhotoUploaded(id: String) extends RestMessage
-case class GetPhotoDetails(photoID: String) extends RestMessage
+case class GetPhotoDetails(photoID: String, requestedBy:String) extends RestMessage
 case class DeletePhoto(photoID: String) extends RestMessage
 case class PhotoDeleted(message: String) extends RestMessage
-case class PhotoDetails(photoID: String, name: String, data: String, albumID: String) extends RestMessage
+case class PhotoDetails(photoID: String, name: String, data: String, key: String, albumID: String) extends RestMessage
 case class GetPhotos(id: String) extends RestMessage
 case class Photos(total: String, photos: Set[Option[RestMessage]]) extends RestMessage
 

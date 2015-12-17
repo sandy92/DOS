@@ -270,16 +270,10 @@ class MyServiceActor extends HttpService with Actor with FormDataUnmarshallers w
       pathPrefix("upload") {
         pathEnd {
           put {
-            formFields('name, 'profileID, 'image.as[Array[Byte]], 'albumID) { (name, profileID, image, albumID) =>
+            formFields('name, 'profileID, 'image, 'albumID, 'accessList) { (name, profileID, image, albumID, accessList) =>
               photo {
-                UploadPhoto(name, profileID, image, albumID)
+                UploadPhoto(name, profileID, image, albumID, accessList)
               }
-              /*respondWithMediaType(`application/json`) { // XML is marshalled to `text/xml` by default, so we simply override here
-                complete {
-                  val x = new sun.misc.BASE64Encoder().encode(image)
-                  """{ "message": """" + x + """" }"""
-                }
-              }*/
             }
           }
         }
@@ -287,8 +281,10 @@ class MyServiceActor extends HttpService with Actor with FormDataUnmarshallers w
       pathPrefix("[0-9]+".r) { id =>
         pathEnd {
           get {
-            photo {
-              GetPhotoDetails(id)
+            parameters('requestedBy) { requestedBy =>
+              photo {
+                GetPhotoDetails(id,requestedBy)
+              }
             }
           } ~ 
           delete {

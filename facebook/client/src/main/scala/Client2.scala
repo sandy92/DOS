@@ -26,6 +26,8 @@ case object StartActor
 case object StopSystem
 case object SimulateSecurePost
 case object SimulateGetSecurePost
+case object SimulateSecurePhoto
+case object SimulateGetSecurePhoto
 
 // case class Client(id: String, ref: ActorRef, publicKey: String)
 case class Client(id: String, publicKey: PublicKey)
@@ -43,7 +45,9 @@ object Client2 extends App {
   }
 
   // Data.userRefs(0) ! SimulateSecurePost
-  Data.userRefs(0) ! SimulateGetSecurePost
+  // Data.userRefs(0) ! SimulateGetSecurePost
+  // Data.userRefs(0) ! SimulateSecurePhoto
+  Data.userRefs(0) ! SimulateGetSecurePhoto
 }
 
 class ClientActor extends Actor {
@@ -115,7 +119,6 @@ class ClientActor extends Actor {
       var m = "Testing secure post"
       var key = Crypto.aes.generateSecretKey
       var initVector = randomString(16)
-      // var iv = new IvParameterSpec(Crypto.srng.generateSeed(16))
       val em = Crypto.aes.encrypt(m,key,initVector)
       val accessList = Map(userID -> ((initVector)+"~~~~~~"+Crypto.rsa.encrypt(Crypto.aes.encodeKey(key),this.publicKey))) ++ b.map(e => friends(e).id -> ((initVector)+"~~~~~~"+Crypto.rsa.encrypt(Crypto.aes.encodeKey(key),friends(e).publicKey))).toMap
 
@@ -174,6 +177,87 @@ class ClientActor extends Actor {
         println("Message: Unable to create a post")
     }
   }
+
+  def simulateSecurePhoto = {
+    // upload photos
+    println("calling simulateSecurePhoto on " + self.path.toString)
+    if(!friends.isEmpty) {
+      val a = scala.collection.mutable.ArrayBuffer.empty[Int]
+      a += scala.util.Random.nextInt(friends.length)
+      a += scala.util.Random.nextInt(friends.length)
+      a += scala.util.Random.nextInt(friends.length)
+      val b = a.distinct
+
+      val file = new File("client/src/main/resources/facebook-logo.jpg").getCanonicalPath()
+      val bis = new BufferedInputStream(new FileInputStream(file))
+      val bArray = Stream.continually(bis.read).takeWhile(-1 !=).map(_.toByte).toArray
+
+      var m = new sun.misc.BASE64Encoder().encode(bArray)
+      var key = Crypto.aes.generateSecretKey
+      var initVector = randomString(16)
+      val em = Crypto.aes.encrypt(m,key,initVector)
+      val accessList = Map(userID -> ((initVector)+"~~~~~~"+Crypto.rsa.encrypt(Crypto.aes.encodeKey(key),this.publicKey))) ++ b.map(e => friends(e).id -> ((initVector)+"~~~~~~"+Crypto.rsa.encrypt(Crypto.aes.encodeKey(key),friends(e).publicKey))).toMap
+
+      // Erasing data from memory
+      m = null
+      key = null
+
+      val formData = FormData(Map("name" -> randomString(10), "profileID" -> userID, "albumID" -> albums.get("Photos").get, "image" -> em, "accessList" -> accessList.toJson.toString))
+
+      pipeline(Put("http://localhost:8080/photo/upload", formData)) onComplete {
+        case Success(r) =>
+          val x = r.entity.asString.parseJson.convertTo[Map[String,String]]
+          val id = x.get("id").getOrElse("")
+          if(!id.isEmpty) {
+            println("Photo Uploaded Successfully - id: " + id.toString)
+          } else {
+            println("Error:" + x.get("error").getOrElse(""))
+          }
+        case Failure(e) =>
+          println("Message: Unable to upload the photo")
+      }
+    }
+  }
+
+  def simulateGetSecurePhoto = {
+    // upload photos
+    println("calling simulateGetSecurePhoto on " + self.path.toString)
+    val photoID = "4145034630696255"
+
+    pipeline(Get("http://localhost:8080/photo/"+photoID+"?requestedBy="+userID)) onComplete {
+      case Success(r) =>
+        val x = r.entity.asString.parseJson.asJsObject
+        val e = x.fields.get("error")
+        if(e.isDefined) {
+          println("Message: " + e.get.toString)
+        } else {
+          val encryptedData = x.fields.get("data").getOrElse("").toString.replaceAll("^\"|\"$", "")
+          val encryptedKey = x.fields.get("key").getOrElse("").toString.replaceAll("^\"|\"$", "")
+          if(!encryptedData.isEmpty && !encryptedKey.isEmpty) {
+            var temp = encryptedKey.split("~~~~~~")
+            var t1 = temp(1).replace("\\n","\n")
+            var k = Crypto.rsa.decrypt(t1,this.privateKey)
+            var key = Crypto.aes.decodeKey(k)
+            println("--------")
+            // println(key)
+            val b = Crypto.aes.decrypt(encryptedData,key,temp(0))
+            var m = new sun.misc.BASE64Encoder().encode(b.getBytes)
+            println(b)
+            println("--------")
+            temp = null
+            t1 = null
+            k = null
+            key = null
+          } else {
+            println("Error: Bad data format")
+          }
+        }
+      case Failure(e) =>
+        println("Message: Unable to create a post")
+    }
+  }
+
+
 
   /*def simulatePostOnFriendsWall = {
     // Post on friends wall
@@ -391,6 +475,8 @@ class ClientActor extends Actor {
       simulateSecurePost
     }
     case SimulateGetSecurePost => simulateGetSecurePost
+    case SimulateSecurePhoto => simulateSecurePhoto
+    case SimulateGetSecurePhoto => simulateGetSecurePhoto
     // case AddtoFriendList(c: Client) => addtoFriendList(c)
     case StopSystem => system.shutdown
     case _ => println(self)
