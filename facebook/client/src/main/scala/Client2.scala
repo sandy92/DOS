@@ -38,16 +38,23 @@ object Client2 extends App {
   import system.dispatcher // execution context for futures
   
   var n:ActorRef = _
-  for( i <- 0 to 0) {
+  for( i <- 0 to 9) {
     n = system.actorOf(Props[ClientActor],name=i.toString)
     Data.userRefs += n
     n ! StartActor
   }
 
   // Data.userRefs(0) ! SimulateSecurePost
-  // Data.userRefs(0) ! SimulateGetSecurePost
+  Data.userRefs(0) ! SimulateGetSecurePost
   // Data.userRefs(0) ! SimulateSecurePhoto
-  Data.userRefs(0) ! SimulateGetSecurePhoto
+  // Data.userRefs(0) ! SimulateGetSecurePhoto
+
+
+  Data.userRefs(1) ! SimulateGetSecurePost
+  Data.userRefs(3) ! SimulateGetSecurePost
+  Data.userRefs(4) ! SimulateGetSecurePost
+  Data.userRefs(6) ! SimulateGetSecurePost
+  Data.userRefs(7) ! SimulateGetSecurePost
 }
 
 class ClientActor extends Actor {
@@ -127,7 +134,12 @@ class ClientActor extends Actor {
       key = null
       //iv = null
 
-      pipeline(Put("http://localhost:8080/user/"+userID+"/posts", FormData(Map("message" -> em, "postedBy" -> userID, "accessList" -> accessList.toJson.toString)))) onComplete {
+      val s = "Posted '"+em+"' on '"+userID+"' by '"+userID+"' for '"+accessList.toJson.toString+"'"
+      val md = MessageDigest.getInstance("SHA-256").digest(s.getBytes("UTF-8"))
+      val hash = md.map("%02x".format(_)).mkString
+      val signature = Crypto.rsa.encrypt(hash,this.privateKey)
+
+      pipeline(Put("http://localhost:8080/user/"+userID+"/posts", FormData(Map("message" -> em, "postedBy" -> userID, "accessList" -> accessList.toJson.toString, "signature" -> signature)))) onComplete {
         case Success(r) =>
           val x = r.entity.asString.parseJson.convertTo[Map[String,String]]
           val id = x.get("id").getOrElse("")
@@ -145,10 +157,15 @@ class ClientActor extends Actor {
 
   def simulateGetSecurePost = {
     // Post on friends wall
-    println("calling simulateGetSecurePost on " + self.path.toString)
+    // println("calling simulateGetSecurePost on " + self.path.toString)
     val postID = "5145034240515909"
 
-    pipeline(Get("http://localhost:8080/post/"+postID+"?requestedBy="+userID)) onComplete {
+    val s = "'"+userID+"' requested post with id '"+postID+"'"
+    val md = MessageDigest.getInstance("SHA-256").digest(s.getBytes("UTF-8"))
+    val hash = md.map("%02x".format(_)).mkString
+    val signature = Crypto.rsa.encrypt(hash,this.privateKey)
+
+    pipeline(Get("http://localhost:8080/post/"+postID,FormData(Map("requestedBy"->userID, "signature"->signature)))) onComplete {
       case Success(r) =>
         val x = r.entity.asString.parseJson.asJsObject
         val e = x.fields.get("error")
@@ -163,7 +180,7 @@ class ClientActor extends Actor {
             var k = Crypto.rsa.decrypt(t1,this.privateKey)
             var key = Crypto.aes.decodeKey(k)
             println("--------")
-            println(Crypto.aes.decrypt(encryptedMessage,key,temp(0)))
+            println("calling simulateGetSecurePost on " + self.path.toString + " -- message: " + Crypto.aes.decrypt(encryptedMessage,key,temp(0)))
             println("--------")
             temp = null
             t1 = null
@@ -174,7 +191,7 @@ class ClientActor extends Actor {
           }
         }
       case Failure(e) =>
-        println("Message: Unable to create a post")
+        println("Message: Unable to get the post")
     }
   }
 
@@ -253,218 +270,9 @@ class ClientActor extends Actor {
           }
         }
       case Failure(e) =>
-        println("Message: Unable to create a post")
+        println("Message: Unable to get the photo")
     }
   }
-
-
-
-  /*def simulatePostOnFriendsWall = {
-    // Post on friends wall
-    println("calling simulatePostOnFriendsWall on " + self.path.toString)
-    if(!friends.isEmpty) {
-      val i = scala.util.Random.nextInt(friends.length)
-
-      pipeline(Put("http://localhost:8080/user/"+(friends(i).id)+"/posts", FormData(Map("message" -> randomString(50),"postedBy" -> userID)))) onComplete {
-        case Success(r) =>
-          val x = r.entity.asString.parseJson.convertTo[Map[String,String]]
-          val message = x.get("message").getOrElse("")
-          if(!message.isEmpty) {
-            println("Success: " + message.toString)
-          } else {
-            println("Message:" + x.get("error").getOrElse(""))
-          }
-        case Failure(e) =>
-          println("Message: Unable to post on friend's wall")
-      }
-    }
-  }*/
-
-  /*// var userID: String = "1144892814719449"
-  var userID: String = ""
-  var pageID: String = ""
-
-  val albums = scala.collection.mutable.HashMap.empty[String,String]
-
-  val friends = scala.collection.mutable.ArrayBuffer.empty[Client]
-
-  // albums += ("" -> "3144885581836637")
-
-  
-
-  
-
-  def formHeaders(params: (String, String)*) =
-    Seq(HttpHeaders.`Content-Disposition`("form-data", Map(params: _*)))
-
-  def getClientData = Client(userID,self)
-
-  def simulateCreateClient = {
-    // Creating the new user
-    println("calling simulateCreateClient on " + self.path.toString)
-    if(userID.isEmpty) {
-      pipeline(Put("http://localhost:8080/user/create",FormData(Map("name" -> randomString(10),"email" -> randomString(10),"age" -> (18 + Random.nextInt(20)).toString)))) onComplete {
-        case Success(r) =>
-          val x = r.entity.asString.parseJson.convertTo[Map[String,String]]
-          val id = x.get("id").getOrElse("")
-          if(!id.isEmpty) {
-            userID = id
-            Data.users += (id -> self)
-          } else {
-            println("Message:" + x.get("error").getOrElse(""))
-          }
-        case Failure(e) =>
-          println("Message: Unable to create user")
-      }
-    }
-  }
-
-  def simulateCreateClientAlbum = {
-    // Create Album
-    println("calling simulateCreateClientAlbum on " + self.path.toString)
-    val albumName = randomString(10)
-    pipeline(Put("http://localhost:8080/album/create",FormData(Map("name" -> albumName,"profileID" -> userID)))) onComplete {
-      case Success(r) =>
-        val x = r.entity.asString.parseJson.convertTo[Map[String,String]]
-        val id = x.get("id").getOrElse("")
-        if(!id.isEmpty) {
-          albums += (albumName -> id)
-        } else {
-          println("Message:" + x.get("error").getOrElse(""))
-        }
-      case Failure(e) =>
-        println("Message: Unable to create album")
-    }
-  }
-
-  def simulateGetClientAlbums = {
-    // Get Albums
-    println("calling simulateGetClientAlbums on " + self.path.toString)
-    pipeline(Get("http://localhost:8080/user/"+userID+"/albums")) onComplete {
-      case Success(r) =>
-        val x = r.entity.asString.parseJson.asJsObject
-        val e = x.fields.get("error")
-        if(e.isDefined) {
-          println("Message: " + e.get.toString)
-        } else {
-          val total = x.fields.get("total")
-          if(total.isDefined) {
-            val m = x.fields.get("albums").get.convertTo[Set[JsValue]].filter(_ != JsNull).map(_.convertTo[Map[String,String]])
-            m.foreach(e => albums += (e.get("name").getOrElse("") -> e.get("albumID").getOrElse("")))
-          } else {
-            println("Message: Invalid Json format")
-          }
-        }
-      case Failure(e) =>
-        println("Message: Unable to get the album list")
-    }
-  }
-
-  def simulateGetClientPhotos = {
-    // Get Photos
-    println("calling simulateGetClientPhotos on " + self.path.toString)
-    if(!albums.isEmpty) {
-      val v = albums.values.toArray
-      val i = scala.util.Random.nextInt(v.length)
-      pipeline(Get("http://localhost:8080/album/"+v(i)+"/photos")) onComplete {
-        case Success(r) =>
-          val x = r.entity.asString.parseJson.asJsObject
-          val e = x.fields.get("error")
-          if(e.isDefined) {
-            println("Message: " + e.get.toString)
-          } else {
-            val total = x.fields.get("total")
-            if(total.isDefined) {
-              println("Total photos found: " + total.getOrElse("0").toString)
-            } else {
-              println("Message: Invalid Json format")
-            }
-          }
-        case Failure(e) =>
-          println("Message: Unable to get the posts")
-       }
-    }
-  }
-
-  def simulateUploadClientPhotos = {
-    // upload photos
-    println("calling simulateUploadClientPhotos on " + self.path.toString)
-    if(!albums.isEmpty) {
-      val v = albums.values.toArray
-      val i = scala.util.Random.nextInt(v.length)
-
-      val file = new File("client/src/main/resources/facebook-logo.jpg").getCanonicalPath()
-      val bis = new BufferedInputStream(new FileInputStream(file))
-      val bArray = Stream.continually(bis.read).takeWhile(-1 !=).map(_.toByte).toArray
-
-      val httpData = HttpData(bArray)
-      val httpEntity = HttpEntity(MediaTypes.`image/jpeg`, httpData).asInstanceOf[HttpEntity.NonEmpty]
-      val formFile = FormFile("image", httpEntity)
-
-      val formData = MultipartFormData(Seq(
-        BodyPart(randomString(10), formHeaders("name" -> "name")),
-        BodyPart(userID, formHeaders("name" -> "profileID")),
-        BodyPart(v(i), formHeaders("name" -> "albumID")),
-        BodyPart(formFile, "image")
-      ))
-
-      pipeline(Put("http://localhost:8080/photo/upload", formData)) onComplete {
-        case Success(r) =>
-          val x = r.entity.asString.parseJson.convertTo[Map[String,String]]
-          val id = x.get("id").getOrElse("")
-          if(!id.isEmpty) {
-            println("Photo uploaded successfully - id - "+ id.toString)
-          } else {
-            println("Message:" + x.get("error").getOrElse(""))
-          }
-        case Failure(e) =>
-          println("Message: Unable to upload the photo")
-      }
-    }
-  }
-
-  def simulatePostOnFriendsWall = {
-    // Post on friends wall
-    println("calling simulatePostOnFriendsWall on " + self.path.toString)
-    if(!friends.isEmpty) {
-      val i = scala.util.Random.nextInt(friends.length)
-
-      pipeline(Put("http://localhost:8080/user/"+(friends(i).id)+"/posts", FormData(Map("message" -> randomString(50),"postedBy" -> userID)))) onComplete {
-        case Success(r) =>
-          val x = r.entity.asString.parseJson.convertTo[Map[String,String]]
-          val message = x.get("message").getOrElse("")
-          if(!message.isEmpty) {
-            println("Success: " + message.toString)
-          } else {
-            println("Message:" + x.get("error").getOrElse(""))
-          }
-        case Failure(e) =>
-          println("Message: Unable to post on friend's wall")
-      }
-    }
-  }
-
-  def simulateGetPosts = {
-    // Get Albums
-    println("calling simulateGetPosts on " + self.path.toString)
-    pipeline(Get("http://localhost:8080/user/"+userID+"/posts")) onComplete {
-      case Success(r) =>
-        val x = r.entity.asString.parseJson.asJsObject
-        val e = x.fields.get("error")
-        if(e.isDefined) {
-          println("Message: " + e.get.toString)
-        } else {
-          val total = x.fields.get("total")
-          if(total.isDefined) {
-            println("Total posts found: " + total.getOrElse("0").toString)
-          } else {
-            println("Message: Invalid Json format")
-          }
-        }
-      case Failure(e) =>
-        println("Message: Unable to get the post list")
-    }
-  }*/
 
   def receive = {
     case StartActor => {

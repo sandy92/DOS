@@ -4,6 +4,7 @@ import serialization._
 import Parse.Implicits._
 import spray.json._
 import MyJsonProtocol._
+import java.security._
 
 class Post extends Actor with RedisApi with LikedBy with IDGenerator {
     override def postStop = closeRedisConnection
@@ -27,19 +28,33 @@ class Post extends Actor with RedisApi with LikedBy with IDGenerator {
     def receive = handleLikedBy orElse {
         case u: GetPostDetails => {
             val x = {
+                val pbl = prefixLookup(u.requestedBy.headOption.getOrElse("").toString)
                 if(u.postID.headOption.getOrElse("").toString == prefix("post").toString) {
-                    val m = rc.hgetall[String,String]("post:"+u.postID.toString).get
-                    if(!m.isEmpty) {
-                        val p = prefixLookup(u.requestedBy.headOption.getOrElse("").toString)
-                        println("access:post:"+u.postID.toString)
-                        println(p+":"+u.requestedBy)
-                        if(rc.hexists("access:post:"+u.postID.toString,p+":"+u.requestedBy)) {
-                            extractPostDetails("post:"+u.postID.toString,p+":"+u.requestedBy,rc).get
+                    val pkey = rc.hget[String](pbl+":"+u.requestedBy, "publicKey").getOrElse("")
+                    if(!pkey.isEmpty){
+                        val validSignature = {
+                            val s = "'"+u.requestedBy+"' requested post with id '"+u.postID+"'"
+                            val m = MessageDigest.getInstance("SHA-256").digest(s.getBytes("UTF-8"))
+                            val hash = m.map("%02x".format(_)).mkString
+                            Crypto.rsa.decrypt(u.signature,Crypto.rsa.decodePublicKey(pkey)) == hash
+                        } 
+                        if(validSignature) {
+                            val m = rc.hgetall[String,String]("post:"+u.postID.toString).get
+                            if(!m.isEmpty) {
+                                val p = prefixLookup(u.requestedBy.headOption.getOrElse("").toString)
+                                if(rc.hexists("access:post:"+u.postID.toString,p+":"+u.requestedBy)) {
+                                    extractPostDetails("post:"+u.postID.toString,p+":"+u.requestedBy,rc).get
+                                } else {
+                                    ErrorMessage("Access denied")
+                                }
+                            } else {
+                                ErrorMessage("Post Not found")
+                            }
                         } else {
-                            ErrorMessage("Access denied")
+                            ErrorMessage("Unable to authenticate the user")
                         }
                     } else {
-                        ErrorMessage("Post Not found")
+                        ErrorMessage("Access denied: Not a valid public key")
                     }
                 } else {
                     ErrorMessage("Not a valid post id")
@@ -61,14 +76,29 @@ class Post extends Actor with RedisApi with LikedBy with IDGenerator {
                     } else if(!rc.exists((pol+":"+u.postedOn).toString)) {
                         ErrorMessage("Not a valid receiver profile id")
                     } else {
-                        val postID = getUniqueID("post")
-                        if(rc.hmset("post:"+postID, Map("message" -> u.message, "postedBy" -> (pbl+":"+u.postedBy).toString, "postedOn" -> (pol+":"+u.postedOn).toString, "date" -> (System.currentTimeMillis / 1000).toString))) {
-                            rc.sadd("posts:"+pol+":"+u.postedOn, "post:"+postID)
-                            val al = u.accessList.parseJson.convertTo[Map[String,String]]
-                            al.foreach(e => rc.hset("access:post:"+postID,prefixLookup(e._1.headOption.getOrElse("").toString) + ":" + e._1,e._2))
-                            PostCreated(postID)
+                        val pkey = rc.hget[String](pbl+":"+u.postedBy, "publicKey").getOrElse("")
+                        if(!pkey.isEmpty){
+                            val validSignature = {
+                                val s = "Posted '"+u.message+"' on '"+u.postedOn+"' by '"+u.postedBy+"' for '"+u.accessList+"'"
+                                val m = MessageDigest.getInstance("SHA-256").digest(s.getBytes("UTF-8"))
+                                val hash = m.map("%02x".format(_)).mkString
+                                Crypto.rsa.decrypt(u.signature,Crypto.rsa.decodePublicKey(pkey)) == hash
+                            } 
+                            if(validSignature) {
+                                val postID = getUniqueID("post")
+                                if(rc.hmset("post:"+postID, Map("message" -> u.message, "postedBy" -> (pbl+":"+u.postedBy).toString, "postedOn" -> (pol+":"+u.postedOn).toString, "date" -> (System.currentTimeMillis / 1000).toString))) {
+                                    rc.sadd("posts:"+pol+":"+u.postedOn, "post:"+postID)
+                                    val al = u.accessList.parseJson.convertTo[Map[String,String]]
+                                    al.foreach(e => rc.hset("access:post:"+postID,prefixLookup(e._1.headOption.getOrElse("").toString) + ":" + e._1,e._2))
+                                    PostCreated(postID)
+                                } else {
+                                    ErrorMessage("Unable to create the post")
+                                }
+                            } else {
+                                ErrorMessage("Unable to authenticate the user")
+                            }
                         } else {
-                            ErrorMessage("Unable to create the post")
+                            ErrorMessage("Access denied: Not a valid public key")
                         }
                     }
                 }
