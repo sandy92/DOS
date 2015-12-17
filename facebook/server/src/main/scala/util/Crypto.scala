@@ -69,7 +69,6 @@ object Crypto {
 
         def decrypt(encryptedMessage: String, key: SecretKey, initVector: String): String = {
             val cipher = Cipher.getInstance("AES/CBC/PKCS5Padding")
-            val x = new sun.misc.BASE64Decoder().decodeBuffer(initVector)
             val iv = new IvParameterSpec(initVector.getBytes)
             cipher.init(Cipher.DECRYPT_MODE, key, iv)
             val stringBytes = cipher.doFinal(new sun.misc.BASE64Decoder().decodeBuffer(encryptedMessage))

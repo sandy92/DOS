@@ -77,6 +77,7 @@ class Post extends Actor with RedisApi with LikedBy with IDGenerator {
                         ErrorMessage("Not a valid receiver profile id")
                     } else {
                         val pkey = rc.hget[String](pbl+":"+u.postedBy, "publicKey").getOrElse("")
+                        val randNumber = rc.hget[String](pbl+":"+u.postedBy, "randNumber").getOrElse("")
                         if(!pkey.isEmpty){
                             val validSignature = {
                                 val s = "Posted '"+u.message+"' on '"+u.postedOn+"' by '"+u.postedBy+"' for '"+u.accessList+"'"

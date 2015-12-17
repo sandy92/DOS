@@ -26,14 +26,15 @@ class User extends Profile with IDGenerator {
             val userID = getUniqueID("user")
             var x: RestMessage = {
                 if(!rc.sismember("users",u.email)) {
-                    val s = rc.hmset("user:"+userID,Map("name"->u.name,"email"->u.email,"age"->u.age, "publicKey"->u.publicKey))
+                    val randNumber = math.abs(Crypto.srng.nextInt).toString
+                    val s = rc.hmset("user:"+userID,Map("name"->u.name,"email"->u.email,"age"->u.age, "publicKey"->u.publicKey, "randNumber"->randNumber))
                     if (s) {
                         rc.sadd("users",u.email)
                         Album.createAlbum("Photos",userID) match {
                             case a: AlbumCreated => rc.hset("user:"+userID,"defaultAlbum",a.id)
                             case _ => 
                         }
-                        UserCreated(userID)
+                        UserCreated(userID,Crypto.rsa.encrypt(randNumber,Crypto.rsa.decodePublicKey(u.publicKey)))
                     } else {
                         ErrorMessage("User not created")
                     }

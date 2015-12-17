@@ -67,10 +67,10 @@ class ClientActor extends Actor {
   private val privateKey = Crypto.rsa.decodePrivateKey(scala.io.Source.fromInputStream(getClass.getResourceAsStream("/keys/"+self.path.name + ".priv")).getLines.mkString)
   val publicKey = Crypto.rsa.decodePublicKey(scala.io.Source.fromInputStream(getClass.getResourceAsStream("/keys/"+self.path.name + ".pub")).getLines.mkString)
 
-  Future {
-    Thread sleep 4000
+  /*Future {
+    Thread sleep 10000
     system.shutdown
-  }
+  }*/
 
   val userID: String = Data.userList(self.path.name.toInt)
   val albums = scala.collection.mutable.HashMap.empty[String,String]
@@ -80,7 +80,16 @@ class ClientActor extends Actor {
 
   val pipeline: HttpRequest => Future[HttpResponse] = sendReceive
 
-  def randomString(length: Int): String = Random.alphanumeric.take(length).mkString
+  def randomString(length: Int): String = {
+    val valid_characters =
+    "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456879".toCharArray()
+
+    var buff = scala.collection.mutable.ArrayBuffer.empty[Char]
+    for(i <- 0 to (length-1)) {
+      buff += valid_characters(Crypto.srng.nextInt(valid_characters.length))
+    }
+    buff.mkString
+  }
 
   def simulateGetFriendsList = {
     // Get Albums
@@ -119,11 +128,11 @@ class ClientActor extends Actor {
     println("calling simulateSecurePost on " + self.path.toString)
     if(!friends.isEmpty) {
       val a = scala.collection.mutable.ArrayBuffer.empty[Int]
-      a += scala.util.Random.nextInt(friends.length)
-      a += scala.util.Random.nextInt(friends.length)
-      a += scala.util.Random.nextInt(friends.length)
+      a += Crypto.srng.nextInt(friends.length)
+      a += Crypto.srng.nextInt(friends.length)
+      a += Crypto.srng.nextInt(friends.length)
       val b = a.distinct
-      var m = "Testing secure post"
+      var m = "Testing secure post 1"
       var key = Crypto.aes.generateSecretKey
       var initVector = randomString(16)
       val em = Crypto.aes.encrypt(m,key,initVector)
@@ -158,7 +167,7 @@ class ClientActor extends Actor {
   def simulateGetSecurePost = {
     // Post on friends wall
     // println("calling simulateGetSecurePost on " + self.path.toString)
-    val postID = "5145034240515909"
+    val postID = "5145038619569502"
 
     val s = "'"+userID+"' requested post with id '"+postID+"'"
     val md = MessageDigest.getInstance("SHA-256").digest(s.getBytes("UTF-8"))

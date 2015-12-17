@@ -12,7 +12,7 @@ object MyJsonProtocol extends DefaultJsonProtocol {
 
     // User formats
     implicit val createUserFormat = jsonFormat4(CreateUser)
-    implicit val userCreatedFormat = jsonFormat1(UserCreated)
+    implicit val userCreatedFormat = jsonFormat2(UserCreated)
     implicit val getUserDetailsFormat = jsonFormat1(GetUserDetails)
     implicit val deleteUserFormat = jsonFormat1(DeleteUser)
     implicit val userDeletedFormat = jsonFormat1(UserDeleted)
