@@ -30,7 +30,7 @@ trait IDGenerator {
         val x = id.split(":")
         if(x.length > 1) {
             x(0) match {
-                case "user" => Some(UserDetails(x(1),m.get("name").getOrElse(""),m.get("email").getOrElse(""),m.get("age").getOrElse("0").toInt))
+                case "user" => Some(UserDetails(x(1),m.get("name").getOrElse(""),m.get("email").getOrElse(""),m.get("age").getOrElse("0").toInt,m.get("publicKey").getOrElse("")))
                 case "page" => Some(PageDetails(x(1),m.get("name").getOrElse(""),m.get("webAddress").getOrElse(""),m.get("about").getOrElse("")))
                 case "album" => 
                     var profile = m.get("profile").getOrElse("")
@@ -44,7 +44,7 @@ trait IDGenerator {
                         }
                     }
                     Some(AlbumDetails(x(1),m.get("name").getOrElse(""),profileID,profileType))
-                case "photo" => 
+                case "photo" =>
                     val album = m.get("album").getOrElse("")
                     var albumID = ""
                     if(!album.isEmpty) {
@@ -53,7 +53,7 @@ trait IDGenerator {
                             albumID = a(1) 
                         }
                     }
-                    Some(PhotoDetails(x(1),m.get("name").getOrElse(""),m.get("data").getOrElse(""),albumID))
+                    Some(PhotoDetails(x(1),m.get("name").getOrElse(""),m.get("data").getOrElse(""),"",albumID))
                 case _ => None
             }
         } else {
@@ -61,7 +61,28 @@ trait IDGenerator {
         }
     }
 
-    def extractPostDetails(id: String, rc: RedisClient) = {
+    def extractDetails(id: String, m: Map[String,String], key: String) = {
+        val x = id.split(":")
+        if(x.length > 1) {
+            x(0) match {
+            case "photo" =>
+                val album = m.get("album").getOrElse("")
+                var albumID = ""
+                if(!album.isEmpty) {
+                    val a = album.split(":")
+                    if(a.length > 1) {
+                        albumID = a(1) 
+                    }
+                }
+                Some(PhotoDetails(x(1),m.get("name").getOrElse(""),m.get("data").getOrElse(""),key,albumID))
+            case _ => None
+            }
+        } else {
+            None
+        }
+    }
+
+    def extractPostDetails(id: String, requestedBy: String, rc: RedisClient) = {
         val x = id.split(":")
         if(x.length > 1) {
             x(0) match {
@@ -69,7 +90,7 @@ trait IDGenerator {
                     val m = rc.hgetall[String,String](id).getOrElse(Map())
                     val postedBy = rc.hgetall[String,String](m.get("postedBy").getOrElse("")).getOrElse(Map())
                     val postedOn = rc.hgetall[String,String](m.get("postedOn").getOrElse("")).getOrElse(Map())
-                    Some(PostDetails(x(1),extractDetails(m.get("postedBy").getOrElse(""),postedBy),extractDetails(m.get("postedOn").getOrElse(""),postedOn),m.get("date").getOrElse("")))
+                    Some(PostDetails(x(1),m.get("message").getOrElse(""),rc.hget("access:"+id,requestedBy).getOrElse(""),extractDetails(m.get("postedBy").getOrElse(""),postedBy),extractDetails(m.get("postedOn").getOrElse(""),postedOn),m.get("date").getOrElse("")))
                 }
                 case _ => None
             }

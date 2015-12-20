@@ -11,12 +11,12 @@ object MyJsonProtocol extends DefaultJsonProtocol {
     implicit val errorMessageFormat = jsonFormat1(ErrorMessage)
 
     // User formats
-    implicit val createUserFormat = jsonFormat3(CreateUser)
-    implicit val userCreatedFormat = jsonFormat1(UserCreated)
+    implicit val createUserFormat = jsonFormat4(CreateUser)
+    implicit val userCreatedFormat = jsonFormat2(UserCreated)
     implicit val getUserDetailsFormat = jsonFormat1(GetUserDetails)
     implicit val deleteUserFormat = jsonFormat1(DeleteUser)
     implicit val userDeletedFormat = jsonFormat1(UserDeleted)
-    implicit val userDetailsFormat = jsonFormat4(UserDetails)
+    implicit val userDetailsFormat = jsonFormat5(UserDetails)
 
     // Page formats
     implicit val createPageFormat = jsonFormat3(CreatePage)
@@ -96,11 +96,11 @@ object MyJsonProtocol extends DefaultJsonProtocol {
     implicit val FriendAddedFormat = jsonFormat1(FriendAdded)
 
     // Posts formats
-    implicit val createPostFormat = jsonFormat3(CreatePost)
+    implicit val createPostFormat = jsonFormat5(CreatePost)
     implicit val postCreatedFormat = jsonFormat1(PostCreated)
     implicit val getPostsFormat = jsonFormat1(GetPosts)
-    implicit val getPostDetailsFormat = jsonFormat1(GetPostDetails)
-    implicit val postDetailsFormat = jsonFormat4(PostDetails)
+    implicit val getPostDetailsFormat = jsonFormat3(GetPostDetails)
+    implicit val postDetailsFormat = jsonFormat6(PostDetails)
     implicit val postsFormat = jsonFormat2(Posts)
     implicit val deletePostFormat = jsonFormat2(DeletePost)
     implicit val postDeletedFormat = jsonFormat1(PostDeleted)
@@ -117,12 +117,12 @@ object MyJsonProtocol extends DefaultJsonProtocol {
     implicit val albumsFormat = jsonFormat2(Albums)
 
     // Photo formats
-    implicit val uploadPhotoFormat = jsonFormat4(UploadPhoto)
+    implicit val uploadPhotoFormat = jsonFormat5(UploadPhoto)
     implicit val photoUploadedFormat = jsonFormat1(PhotoUploaded)
-    implicit val getPhotoDetailsFormat = jsonFormat1(GetPhotoDetails)
+    implicit val getPhotoDetailsFormat = jsonFormat2(GetPhotoDetails)
     implicit val deletePhotoFormat = jsonFormat1(DeletePhoto)
     implicit val photoDeletedFormat = jsonFormat1(PhotoDeleted)
-    implicit val photoDetailsFormat = jsonFormat4(PhotoDetails)
+    implicit val photoDetailsFormat = jsonFormat5(PhotoDetails)
     implicit val getPhotosFormat = jsonFormat1(GetPhotos)
     implicit val photosFormat = jsonFormat2(Photos)
 }

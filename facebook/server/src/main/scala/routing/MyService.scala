@@ -60,9 +60,9 @@ class MyServiceActor extends HttpService with Actor with FormDataUnmarshallers w
       pathPrefix("create") {
         pathEnd {
           put {
-            formFields('name, 'email ,'age.as[Int]) { (name, email, age) =>
+            formFields('name, 'email ,'age.as[Int], 'publicKey) { (name, email, age, publicKey) =>
               user {
-                CreateUser(name, email,age)
+                CreateUser(name, email,age, publicKey)
               }
             }
           }
@@ -114,9 +114,9 @@ class MyServiceActor extends HttpService with Actor with FormDataUnmarshallers w
               }
             } ~
             put {
-              formFields('message, 'postedBy) { (message, postedBy) => 
+              formFields('message, 'postedBy, 'accessList, 'signature) { (message, postedBy, accessList, signature) => 
                 fbPost {
-                  CreatePost(message, postedBy, id)
+                  CreatePost(message, postedBy, id, accessList, signature)
                 } 
               }
             }
@@ -184,9 +184,9 @@ class MyServiceActor extends HttpService with Actor with FormDataUnmarshallers w
               }
             } ~
             put {
-              formFields('message, 'postedBy) { (message, postedBy) => 
+              formFields('message, 'postedBy, 'accessList, 'signature) { (message, postedBy, accessList, signature) => 
                 fbPost {
-                  CreatePost(message, postedBy, id)
+                  CreatePost(message, postedBy, id, accessList, signature)
                 } 
               }
             }
@@ -270,16 +270,10 @@ class MyServiceActor extends HttpService with Actor with FormDataUnmarshallers w
       pathPrefix("upload") {
         pathEnd {
           put {
-            formFields('name, 'profileID, 'image.as[Array[Byte]], 'albumID) { (name, profileID, image, albumID) =>
+            formFields('name, 'profileID, 'image, 'albumID, 'accessList) { (name, profileID, image, albumID, accessList) =>
               photo {
-                UploadPhoto(name, profileID, image, albumID)
+                UploadPhoto(name, profileID, image, albumID, accessList)
               }
-              /*respondWithMediaType(`application/json`) { // XML is marshalled to `text/xml` by default, so we simply override here
-                complete {
-                  val x = new sun.misc.BASE64Encoder().encode(image)
-                  """{ "message": """" + x + """" }"""
-                }
-              }*/
             }
           }
         }
@@ -287,8 +281,10 @@ class MyServiceActor extends HttpService with Actor with FormDataUnmarshallers w
       pathPrefix("[0-9]+".r) { id =>
         pathEnd {
           get {
-            photo {
-              GetPhotoDetails(id)
+            parameters('requestedBy) { requestedBy =>
+              photo {
+                GetPhotoDetails(id,requestedBy)
+              }
             }
           } ~ 
           delete {
@@ -321,8 +317,10 @@ class MyServiceActor extends HttpService with Actor with FormDataUnmarshallers w
       pathPrefix("[0-9]+".r) { id =>
         pathEnd {
           get {
-            fbPost {
-              GetPostDetails(id)
+            formFields('requestedBy, 'signature) { (requestedBy,signature) =>
+              fbPost {
+                GetPostDetails(id,requestedBy,signature)
+              }
             }
           } ~ 
           delete {

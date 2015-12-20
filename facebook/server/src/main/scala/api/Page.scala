@@ -94,12 +94,12 @@ class Page extends Profile with LikedBy with IDGenerator {
         }
         case u: GetPosts => {
             val x = {
-                if(u.profileID.headOption.getOrElse("").toString == prefix("user").toString) {
+                if(u.profileID.headOption.getOrElse("").toString == prefix("page").toString) {
                     val webAddress = rc.hget[String]("page:" + u.profileID.toString,"webAddress").getOrElse("")
                     if(!webAddress.isEmpty) {
                         val size = rc.scard("posts:page:"+u.profileID.toString).getOrElse(0).toString
                         val m = rc.smembers[String]("posts:page:"+u.profileID.toString).get
-                        Posts(size,m.map(_.get).map(e => extractPostDetails(e,rc)))
+                        Posts(size,m.map(_.get).map(e => extractPostDetails(e,"page:"+u.profileID.toString,rc)))
                     } else {
                         ErrorMessage("The given page does not exist")
                     }
